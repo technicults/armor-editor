@@ -6,6 +6,9 @@ import { themes, applyTheme, Theme } from './themes';
 import { PluginManager, Plugin } from './plugins';
 import { ShortcutManager } from './shortcuts';
 import { PerformanceMonitor, debounce } from './performance';
+import { CommandPalette } from './command-palette';
+import { MobileEnhancements } from './mobile-enhancements';
+import { AIEnhancements } from './ai-enhancements';
 
 export interface EditorOptions {
   container: HTMLElement | string;
@@ -107,6 +110,9 @@ export class ArmorEditor {
   private pluginManager!: PluginManager;
   private shortcutManager: ShortcutManager | null = null;
   private performanceMonitor: PerformanceMonitor | null = null;
+  private commandPalette: CommandPalette | null = null;
+  private mobileEnhancements: MobileEnhancements | null = null;
+  private aiEnhancements: AIEnhancements | null = null;
   private options: EditorOptions;
   private colorPicker: HTMLDivElement | null = null;
   private linkDialog: HTMLDivElement | null = null;
@@ -283,6 +289,19 @@ export class ArmorEditor {
     // Initialize performance monitoring
     if (this.options.performance?.monitoring) {
       this.performanceMonitor = new PerformanceMonitor();
+    }
+    
+    // Initialize command palette
+    this.commandPalette = new CommandPalette(this);
+    
+    // Initialize mobile enhancements
+    if (this.isMobile) {
+      this.mobileEnhancements = new MobileEnhancements(this);
+    }
+    
+    // Initialize AI enhancements
+    if (this.options.ai?.enabled) {
+      this.aiEnhancements = new AIEnhancements(this);
     }
     
     // Initialize undo system
@@ -3620,6 +3639,11 @@ export class ArmorEditor {
       this.performanceMonitor.destroy();
     }
     
+    // Cleanup command palette
+    if (this.commandPalette) {
+      this.commandPalette.destroy();
+    }
+    
     // Clear timers
     if (this.autoSaveTimer) {
       clearInterval(this.autoSaveTimer);
@@ -3768,6 +3792,24 @@ export class ArmorEditor {
   getPerformanceMetrics() {
     return this.performanceMonitor?.getMetrics() || {};
   }
+
+  // Command palette methods
+  showCommandPalette() {
+    this.commandPalette?.show();
+  }
+
+  registerCommand(command: any) {
+    this.commandPalette?.registerCommand(command);
+  }
+
+  // AI enhancement methods
+  async generateContent(prompt: string): Promise<string> {
+    return this.aiEnhancements?.generateContent(prompt) || '';
+  }
+
+  addContentTemplate(template: any) {
+    this.aiEnhancements?.addTemplate(template);
+  }
 }
 
 // Auto-initialization for data attributes (SSR-safe)
@@ -3813,3 +3855,8 @@ export { ShortcutManager, Shortcut } from './shortcuts';
 
 // Export performance utilities
 export { PerformanceMonitor, debounce, throttle, VirtualScroll } from './performance';
+
+// Export new enhancements
+export { CommandPalette, Command } from './command-palette';
+export { MobileEnhancements } from './mobile-enhancements';
+export { AIEnhancements, ContentTemplate } from './ai-enhancements';
