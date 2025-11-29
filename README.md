@@ -723,7 +723,7 @@ NEXT_PUBLIC_OPENAI_API_KEY=your-openai-api-key
 DATABASE_URL=your-database-url
 ```
 
-### **Next.js (App Router)**
+### **Nuxt.js (Auto-import)**
 
 #### Step 1: Add Module
 ```javascript
