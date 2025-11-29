@@ -74,6 +74,10 @@ const editor = new ArmorEditor({
 
 ### **Advanced Features**
 - **AI Writing Assistant** - Grammar, tone, and content improvement
+- **Theme System** - Built-in themes (Light, Dark, Minimal) with custom theme support
+- **Plugin Architecture** - Extensible plugin system with built-in plugins
+- **Advanced Shortcuts** - Customizable keyboard shortcuts with shortcut manager
+- **Performance Monitoring** - Real-time performance metrics and optimization
 - **Mobile Optimization** - Touch gestures, collapsible toolbar
 - **Performance** - Virtual scrolling, lazy loading for large documents
 - **Enhanced Security** - Comprehensive XSS protection, URL sanitization

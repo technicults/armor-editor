@@ -2,7 +2,22 @@
 
 All notable changes to ArmorEditor will be documented in this file.
 
-## [1.0.9] - 2024-11-30
+## [1.0.12] - 2025-11-30
+
+### Added
+- **Theme System**: Built-in themes (Light, Dark, Minimal) with custom theme support
+- **Plugin Architecture**: Extensible plugin system with built-in plugins
+- **Advanced Shortcuts**: Customizable keyboard shortcuts with shortcut manager
+- **Performance Monitoring**: Real-time performance metrics and optimization tools
+- **Enhanced Exports**: All new systems exported for external use
+
+### Enhanced
+- CSS variables system for consistent theming
+- Plugin lifecycle management with proper cleanup
+- Performance utilities (debounce, throttle, virtual scrolling)
+- TypeScript definitions for all new features
+
+## [1.0.11] - 2025-11-30
 
 ### Added
 - Multi-provider AI support (OpenAI, Anthropic, Google, Cohere, Hugging Face)
@@ -27,7 +42,7 @@ All notable changes to ArmorEditor will be documented in this file.
 - Mobile toolbar collapsible behavior
 - AI processing loading states
 
-## [1.0.0] - 2024-11-29
+## [1.0.0] - 2025-11-29
 
 ### Added
 - Initial release of ArmorEditor

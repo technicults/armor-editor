@@ -2,6 +2,10 @@
 export const VERSION = '1.0.12';
 
 import { icons } from './icons';
+import { themes, applyTheme, Theme } from './themes';
+import { PluginManager, Plugin } from './plugins';
+import { ShortcutManager } from './shortcuts';
+import { PerformanceMonitor, debounce } from './performance';
 
 export interface EditorOptions {
   container: HTMLElement | string;
@@ -9,7 +13,7 @@ export interface EditorOptions {
   toolbar?: boolean | string[];
   height?: string;
   width?: string;
-  theme?: 'light' | 'dark';
+  theme?: string | Theme;
   language?: string;
   plugins?: string[];
   onChange?: (content: string) => void;
@@ -43,17 +47,18 @@ export interface EditorOptions {
     feeds: Array<{name: string, id: string}>;
   };
   customFonts?: string[];
-  customCSS?: string;
+  shortcuts?: boolean;
+  performance?: {
+    monitoring?: boolean;
+    virtualScrolling?: boolean;
+    lazyLoading?: boolean;
+    chunkSize?: number;
+  };
   readOnly?: boolean;
   mobile?: {
     enabled?: boolean;
     collapsibleToolbar?: boolean;
     touchGestures?: boolean;
-  };
-  performance?: {
-    virtualScrolling?: boolean;
-    lazyLoading?: boolean;
-    chunkSize?: number;
   };
   ai?: {
     enabled?: boolean;
@@ -99,6 +104,9 @@ export class ArmorEditor {
   private container!: HTMLElement;
   private editor!: HTMLDivElement;
   private toolbar!: HTMLDivElement;
+  private pluginManager!: PluginManager;
+  private shortcutManager: ShortcutManager | null = null;
+  private performanceMonitor: PerformanceMonitor | null = null;
   private options: EditorOptions;
   private colorPicker: HTMLDivElement | null = null;
   private linkDialog: HTMLDivElement | null = null;
@@ -263,6 +271,19 @@ export class ArmorEditor {
     
     // Mark as client-side initialized
     this.isSSR = false;
+    
+    // Initialize plugin manager
+    this.pluginManager = new PluginManager(this);
+    
+    // Initialize shortcuts if enabled
+    if (this.options.shortcuts !== false) {
+      this.shortcutManager = new ShortcutManager(this);
+    }
+    
+    // Initialize performance monitoring
+    if (this.options.performance?.monitoring) {
+      this.performanceMonitor = new PerformanceMonitor();
+    }
     
     // Initialize undo system
     this.lastContent = this.getContent();
@@ -3028,10 +3049,15 @@ export class ArmorEditor {
       outline: none;
       overflow-y: auto;
       line-height: 1.6;
-      background: ${isDark ? '#2d2d2d' : '#fff'};
-      color: ${isDark ? '#fff' : '#000'};
+      font-family: var(--ae-font-primary, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+      background: var(--ae-bg, ${isDark ? '#2d2d2d' : '#fff'});
+      color: var(--ae-text, ${isDark ? '#fff' : '#000'});
+      border: 1px solid var(--ae-border, #e1e5e9);
       ${this.options.readOnly ? 'cursor: default;' : ''}
     `;
+    
+    // Apply theme
+    this.applyTheme();
     
     // Add accessibility attributes
     this.editor.setAttribute('role', 'textbox');
@@ -3584,6 +3610,16 @@ export class ArmorEditor {
   public destroy(): void {
     if (this.isSSR) return;
     
+    // Cleanup plugins
+    if (this.pluginManager) {
+      this.pluginManager.destroy();
+    }
+    
+    // Cleanup performance monitoring
+    if (this.performanceMonitor) {
+      this.performanceMonitor.destroy();
+    }
+    
     // Clear timers
     if (this.autoSaveTimer) {
       clearInterval(this.autoSaveTimer);
@@ -3669,6 +3705,69 @@ export class ArmorEditor {
   private handleCollaborativeSelectionChange = () => {
     this.handleSelectionChange();
   };
+
+  private applyTheme() {
+    if (!this.options.theme) return;
+    
+    let theme: Theme;
+    if (typeof this.options.theme === 'string') {
+      theme = themes[this.options.theme] || themes.light;
+    } else {
+      theme = this.options.theme;
+    }
+    
+    applyTheme(this.container, theme);
+  }
+
+  setTheme(themeName: string | Theme) {
+    this.options.theme = themeName;
+    this.applyTheme();
+  }
+
+  // Plugin management methods
+  registerPlugin(plugin: Plugin) {
+    if (this.pluginManager) {
+      this.pluginManager.register(plugin);
+    }
+  }
+
+  unregisterPlugin(pluginName: string) {
+    if (this.pluginManager) {
+      this.pluginManager.unregister(pluginName);
+    }
+  }
+
+  getPlugin(name: string): Plugin | undefined {
+    return this.pluginManager?.getPlugin(name);
+  }
+
+  // Shortcut management methods
+  registerShortcut(shortcut: any) {
+    if (this.shortcutManager) {
+      this.shortcutManager.register(shortcut);
+    }
+  }
+
+  getShortcuts() {
+    return this.shortcutManager?.getShortcuts() || [];
+  }
+
+  // Performance monitoring methods
+  startMeasure(name: string) {
+    if (this.performanceMonitor) {
+      this.performanceMonitor.startMeasure(name);
+    }
+  }
+
+  endMeasure(name: string) {
+    if (this.performanceMonitor) {
+      this.performanceMonitor.endMeasure(name);
+    }
+  }
+
+  getPerformanceMetrics() {
+    return this.performanceMonitor?.getMetrics() || {};
+  }
 }
 
 // Auto-initialization for data attributes (SSR-safe)
@@ -3702,3 +3801,15 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     setTimeout(initializeEditors, 100);
   }
 }
+
+// Export theme system
+export { themes, applyTheme, Theme } from './themes';
+
+// Export plugin system
+export { PluginManager, Plugin, wordCountPlugin, autoSavePlugin } from './plugins';
+
+// Export shortcuts system
+export { ShortcutManager, Shortcut } from './shortcuts';
+
+// Export performance utilities
+export { PerformanceMonitor, debounce, throttle, VirtualScroll } from './performance';
