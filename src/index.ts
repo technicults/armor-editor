@@ -44,6 +44,7 @@ export interface EditorOptions {
   };
   customFonts?: string[];
   customCSS?: string;
+  readOnly?: boolean;
 }
 
 export class ArmorEditor {
@@ -181,7 +182,8 @@ export class ArmorEditor {
     this.container.innerHTML = '';
     this.setupStyles();
     
-    if (this.options.toolbar !== false) {
+    // Only create toolbar if not in read-only mode
+    if (this.options.toolbar !== false && !this.options.readOnly) {
       this.createToolbar();
     }
     
@@ -253,6 +255,9 @@ export class ArmorEditor {
   }
 
   private createToolbar() {
+    // Don't create toolbar in read-only mode
+    if (this.options.readOnly) return;
+    
     const isDark = this.options.theme === 'dark';
     this.toolbar = document.createElement('div');
     this.toolbar.className = 'armor-editor-toolbar';
@@ -2366,7 +2371,7 @@ export class ArmorEditor {
   private createEditor() {
     const isDark = this.options.theme === 'dark';
     this.editor = document.createElement('div');
-    this.editor.contentEditable = 'true';
+    this.editor.contentEditable = this.options.readOnly ? 'false' : 'true';
     this.editor.className = 'armor-editor-content';
     this.editor.style.cssText = `
       padding: 12px;
@@ -2376,15 +2381,17 @@ export class ArmorEditor {
       line-height: 1.6;
       background: ${isDark ? '#2d2d2d' : '#fff'};
       color: ${isDark ? '#fff' : '#000'};
+      ${this.options.readOnly ? 'cursor: default;' : ''}
     `;
     
     // Add accessibility attributes
     this.editor.setAttribute('role', 'textbox');
     this.editor.setAttribute('aria-multiline', 'true');
-    this.editor.setAttribute('aria-label', 'Rich text editor');
+    this.editor.setAttribute('aria-label', this.options.readOnly ? 'Read-only text content' : 'Rich text editor');
     this.editor.setAttribute('tabindex', '0');
+    this.editor.setAttribute('aria-readonly', this.options.readOnly ? 'true' : 'false');
     
-    if (this.options.placeholder) {
+    if (this.options.placeholder && !this.options.readOnly) {
       this.editor.setAttribute('data-placeholder', this.options.placeholder);
       this.editor.setAttribute('aria-placeholder', this.options.placeholder);
       const style = document.createElement('style');
@@ -2481,6 +2488,13 @@ export class ArmorEditor {
   };
 
   private attachEvents() {
+    // In read-only mode, only attach minimal events
+    if (this.options.readOnly) {
+      // Only attach focus event for accessibility
+      this.editor.addEventListener('focus', this.handleFocus);
+      return;
+    }
+    
     this.editor.addEventListener('input', this.handleInput);
     this.editor.addEventListener('keydown', this.handleKeydown);
     this.editor.addEventListener('paste', this.handlePaste);
@@ -2793,6 +2807,32 @@ export class ArmorEditor {
   public getSelection(): Selection | null {
     if (this.isSSR) return null;
     return window.getSelection();
+  }
+
+  public setReadOnly(readOnly: boolean): void {
+    if (this.isSSR || !this.editor) return;
+    
+    this.options.readOnly = readOnly;
+    this.editor.contentEditable = readOnly ? 'false' : 'true';
+    this.editor.setAttribute('aria-readonly', readOnly ? 'true' : 'false');
+    this.editor.setAttribute('aria-label', readOnly ? 'Read-only text content' : 'Rich text editor');
+    
+    // Update cursor style
+    this.editor.style.cursor = readOnly ? 'default' : '';
+    
+    // Show/hide toolbar
+    if (this.toolbar) {
+      this.toolbar.style.display = readOnly ? 'none' : 'flex';
+    }
+    
+    // Re-attach events if switching from read-only to editable
+    if (!readOnly && this.options.readOnly !== readOnly) {
+      this.attachEvents();
+    }
+  }
+
+  public isReadOnly(): boolean {
+    return this.options.readOnly || false;
   }
 
   public destroy(): void {

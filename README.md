@@ -42,6 +42,7 @@ const editor = new ArmorEditor({
 - [Collaboration Setup](#collaboration-setup)
 - [Spell Check Setup](#spell-check-setup)
 - [Use Cases & Examples](#use-cases--examples)
+- [Read-Only Mode](#read-only-mode)
 - [API Reference](#api-reference)
 - [Customization](#customization)
 - [Troubleshooting](#troubleshooting)
@@ -284,8 +285,9 @@ const editor = new ArmorEditor({
   theme: 'light', // 'light' or 'dark'
   placeholder: 'Start typing...',
   
-  // Toolbar
+  // Functionality
   toolbar: true, // or custom array
+  readOnly: false, // Set to true for read-only mode
   
   // Advanced Options
   language: 'en-US',
@@ -540,6 +542,64 @@ const formEditor = new ArmorEditor({
 
 ---
 
+## Read-Only Mode
+
+### Enable Read-Only Mode
+```javascript
+// Initialize as read-only
+const editor = new ArmorEditor({
+  container: '#editor',
+  readOnly: true,
+  height: '300px'
+});
+
+// Or toggle read-only mode dynamically
+editor.setReadOnly(true);  // Enable read-only
+editor.setReadOnly(false); // Enable editing
+```
+
+### Read-Only Features
+- **No Toolbar** - Toolbar is automatically hidden
+- **No Editing** - Content cannot be modified by user
+- **Accessibility** - Proper ARIA attributes for screen readers
+- **Content Display** - Perfect for displaying formatted content
+- **Dynamic Toggle** - Switch between read-only and editable modes
+
+### Use Cases
+```javascript
+// Document viewer
+const viewer = new ArmorEditor({
+  container: '#document-viewer',
+  readOnly: true,
+  height: '500px'
+});
+
+// Preview mode
+const preview = new ArmorEditor({
+  container: '#preview',
+  readOnly: true,
+  theme: 'light'
+});
+
+// Toggle for edit/preview
+function toggleEditMode() {
+  const isReadOnly = editor.isReadOnly();
+  editor.setReadOnly(!isReadOnly);
+  
+  // Update UI
+  document.getElementById('edit-btn').textContent = 
+    isReadOnly ? 'Preview' : 'Edit';
+}
+```
+
+### API Methods
+| Method | Description |
+|--------|-------------|
+| `setReadOnly(boolean)` | Enable/disable read-only mode |
+| `isReadOnly()` | Check if editor is in read-only mode |
+
+---
+
 ## API Reference
 
 ### Constructor Options
@@ -552,6 +612,7 @@ const formEditor = new ArmorEditor({
 | `theme` | `'light' \| 'dark'` | `'light'` | Editor theme |
 | `placeholder` | `string` | `''` | Placeholder text |
 | `toolbar` | `boolean \| string[]` | `true` | Toolbar configuration |
+| `readOnly` | `boolean` | `false` | Enable read-only mode |
 | `spellCheck` | `boolean` | `false` | Enable spell checking |
 | `collaboration` | `object` | `null` | Collaboration settings |
 | `trackChanges` | `boolean` | `false` | Enable track changes |
@@ -572,6 +633,8 @@ const formEditor = new ArmorEditor({
 | `insertHTML(html)` | `void` | Insert HTML at cursor |
 | `focus()` | `void` | Focus the editor |
 | `getSelection()` | `Selection` | Get current selection |
+| `setReadOnly(boolean)` | `void` | Enable/disable read-only mode |
+| `isReadOnly()` | `boolean` | Check if editor is in read-only mode |
 | `destroy()` | `void` | Clean up editor |
 
 ### Events
