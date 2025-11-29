@@ -1,4 +1,4 @@
-export declare const VERSION = "1.0.2";
+export declare const VERSION = "1.0.3";
 export interface EditorOptions {
     container: HTMLElement | string;
     placeholder?: string;
@@ -92,7 +92,9 @@ export declare class ArmorEditor {
     private renderComments;
     private addComment;
     private toggleSpellCheck;
+    private spellCheckListener;
     private setupSpellCheckListener;
+    private removeSpellCheckListener;
     private runAdvancedSpellCheck;
     private runBasicSpellCheck;
     private highlightSpellingErrors;

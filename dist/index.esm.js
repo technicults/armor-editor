@@ -35,7 +35,7 @@ const icons = {
 };
 
 // Version info
-const VERSION = '1.0.2';
+const VERSION = '1.0.3';
 class ArmorEditor {
     constructor(options) {
         this.colorPicker = null;
@@ -51,6 +51,7 @@ class ArmorEditor {
         this.autoSaveTimer = null;
         this.spellCheckEnabled = false;
         this.isSSR = false;
+        this.spellCheckListener = null;
         // Check for SSR environment
         this.isSSR = typeof window === 'undefined' || typeof document === 'undefined';
         if (this.isSSR) {
@@ -524,29 +525,17 @@ class ArmorEditor {
         }, 100);
     }
     applyColor(type, color) {
+        var _a, _b;
         this.editor.focus();
-        const selection = window.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            if (!range.collapsed) {
-                const span = document.createElement('span');
-                if (type === 'color') {
-                    span.style.color = color;
-                }
-                else {
-                    span.style.backgroundColor = color;
-                }
-                try {
-                    range.surroundContents(span);
-                }
-                catch (e) {
-                    span.appendChild(range.extractContents());
-                    range.insertNode(span);
-                }
-                selection.removeAllRanges();
-                selection.addRange(range);
-            }
+        // Use execCommand for better compatibility and formatting persistence
+        if (type === 'color') {
+            this.execCommand('foreColor', color);
         }
+        else {
+            this.execCommand('backColor', color);
+        }
+        // Trigger change event
+        (_b = (_a = this.options).onChange) === null || _b === void 0 ? void 0 : _b.call(_a, this.getContent());
     }
     showLinkDialog() {
         var _a, _b, _c;
@@ -909,22 +898,38 @@ class ArmorEditor {
         }
         else {
             this.clearSpellCheckHighlights();
+            this.removeSpellCheckListener();
         }
         // Update button visual state
         this.updateButtonActiveState('spellCheck');
     }
     setupSpellCheckListener() {
+        // Remove existing listener first
+        this.removeSpellCheckListener();
         // Debounced spell check on typing
         let spellCheckTimeout;
-        const handleSpellCheck = () => {
+        this.spellCheckListener = () => {
+            if (!this.spellCheckEnabled)
+                return;
             clearTimeout(spellCheckTimeout);
             spellCheckTimeout = window.setTimeout(() => {
-                this.runAdvancedSpellCheck();
+                if (this.spellCheckEnabled) {
+                    this.runAdvancedSpellCheck();
+                }
             }, 1000); // Check after 1 second of no typing
         };
-        this.editor.addEventListener('input', handleSpellCheck);
+        this.editor.addEventListener('input', this.spellCheckListener);
+    }
+    removeSpellCheckListener() {
+        if (this.spellCheckListener) {
+            this.editor.removeEventListener('input', this.spellCheckListener);
+            this.spellCheckListener = null;
+        }
     }
     async runAdvancedSpellCheck() {
+        // Don't run if spell check is disabled
+        if (!this.spellCheckEnabled)
+            return;
         const text = this.getText();
         if (!text.trim())
             return;
@@ -941,21 +946,28 @@ class ArmorEditor {
                     'enabledOnly': 'false'
                 })
             });
-            if (response.ok) {
+            if (response.ok && this.spellCheckEnabled) {
                 const result = await response.json();
                 this.highlightSpellingErrors(result.matches);
             }
             else {
                 // Fallback to basic spell check
-                this.runBasicSpellCheck();
+                if (this.spellCheckEnabled) {
+                    this.runBasicSpellCheck();
+                }
             }
         }
         catch (error) {
             console.warn('Advanced spell check failed, using basic check:', error);
-            this.runBasicSpellCheck();
+            if (this.spellCheckEnabled) {
+                this.runBasicSpellCheck();
+            }
         }
     }
     runBasicSpellCheck() {
+        // Don't run if spell check is disabled
+        if (!this.spellCheckEnabled)
+            return;
         const text = this.getText();
         const words = text.split(/\s+/);
         const misspelled = words.filter(word => this.isWordMisspelled(word));
@@ -1002,6 +1014,9 @@ class ArmorEditor {
         const errorSpans = this.editor.querySelectorAll('.spell-error');
         errorSpans.forEach(span => {
             span.addEventListener('click', (e) => {
+                // Don't show suggestions if spell check is disabled
+                if (!this.spellCheckEnabled)
+                    return;
                 e.preventDefault();
                 this.showSpellCheckSuggestions(span);
             });
@@ -1009,6 +1024,9 @@ class ArmorEditor {
     }
     showSpellCheckSuggestions(errorSpan) {
         var _a;
+        // Don't show suggestions if spell check is disabled
+        if (!this.spellCheckEnabled)
+            return;
         const suggestions = ((_a = errorSpan.getAttribute('data-suggestions')) === null || _a === void 0 ? void 0 : _a.split('|')) || [];
         errorSpan.textContent || '';
         // Remove existing suggestion popup
@@ -1109,15 +1127,24 @@ class ArmorEditor {
         }, 100);
     }
     clearSpellCheckHighlights() {
-        // Remove all spell check highlights
+        // Remove all spell check highlights immediately
         const errorSpans = this.editor.querySelectorAll('.spell-error, .spell-error-basic');
         errorSpans.forEach(span => {
+            const textContent = span.textContent || '';
+            const textNode = document.createTextNode(textContent);
             const parent = span.parentNode;
             if (parent) {
-                parent.replaceChild(document.createTextNode(span.textContent || ''), span);
-                parent.normalize();
+                parent.replaceChild(textNode, span);
             }
         });
+        // Normalize the editor content to merge adjacent text nodes
+        this.editor.normalize();
+        // Remove any existing spell check popups
+        const existingPopups = document.querySelectorAll('.spell-suggestions');
+        existingPopups.forEach(popup => popup.remove());
+        // Also remove popups from container if they exist there
+        const containerPopups = this.container.querySelectorAll('.spell-suggestions');
+        containerPopups.forEach(popup => popup.remove());
     }
     escapeRegex(string) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1822,16 +1849,24 @@ class ArmorEditor {
             (_b = (_a = this.options).onChange) === null || _b === void 0 ? void 0 : _b.call(_a, this.getContent());
             this.updateWordCount();
         });
-        // Update button states on selection change
-        this.editor.addEventListener('selectionchange', () => {
-            this.updateFormattingButtonStates();
-        });
-        // Also update on mouse up and key up for immediate feedback
-        this.editor.addEventListener('mouseup', () => {
-            setTimeout(() => this.updateFormattingButtonStates(), 10);
-        });
-        this.editor.addEventListener('keyup', () => {
-            setTimeout(() => this.updateFormattingButtonStates(), 10);
+        // Update button states on selection change with debouncing
+        let selectionTimeout;
+        const updateButtonStates = () => {
+            clearTimeout(selectionTimeout);
+            selectionTimeout = window.setTimeout(() => {
+                this.updateFormattingButtonStates();
+            }, 50); // Small delay to ensure DOM is updated
+        };
+        // Listen to multiple events for comprehensive state updates
+        this.editor.addEventListener('selectionchange', updateButtonStates);
+        this.editor.addEventListener('mouseup', updateButtonStates);
+        this.editor.addEventListener('keyup', updateButtonStates);
+        this.editor.addEventListener('focus', updateButtonStates);
+        // Also listen to document selection change for better coverage
+        document.addEventListener('selectionchange', () => {
+            if (document.activeElement === this.editor) {
+                updateButtonStates();
+            }
         });
         this.editor.addEventListener('keydown', (e) => {
             if (e.ctrlKey || e.metaKey) {
@@ -1881,10 +1916,23 @@ class ArmorEditor {
     }
     isFormatActive(format) {
         try {
+            // Use document.queryCommandState for more reliable detection
+            if (typeof document.queryCommandState === 'function') {
+                switch (format) {
+                    case 'bold':
+                        return document.queryCommandState('bold');
+                    case 'italic':
+                        return document.queryCommandState('italic');
+                    case 'underline':
+                        return document.queryCommandState('underline');
+                    case 'strikethrough':
+                        return document.queryCommandState('strikeThrough');
+                }
+            }
+            // Fallback to DOM inspection
             const selection = window.getSelection();
             if (!selection || selection.rangeCount === 0)
                 return false;
-            // Check if the current selection or cursor position has the format
             const range = selection.getRangeAt(0);
             let element = range.commonAncestorContainer;
             // If it's a text node, get its parent element
@@ -1947,6 +1995,10 @@ class ArmorEditor {
         this.editor.focus();
         // Check if execCommand is available (not in Node.js/JSDOM)
         if (typeof document.execCommand === 'function') {
+            // For color commands, use styleWithCSS for better compatibility
+            if (command === 'foreColor' || command === 'backColor') {
+                document.execCommand('styleWithCSS', false, 'true');
+            }
             document.execCommand(command, false, value);
         }
         else {
