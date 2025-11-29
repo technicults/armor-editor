@@ -1,6 +1,6 @@
 {
   "name": "armor-editor",
-  "version": "2.0.4",
+  "version": "2.0.6",
   "description": "Advanced rich text editor with premium armor-grade security, real-time collaboration, spell checking, track changes, and framework-agnostic design for React, Vue, Angular, Next.js, Nuxt.js",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
