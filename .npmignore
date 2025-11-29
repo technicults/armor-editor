@@ -1,0 +1,39 @@
+# Development files
+src/
+*.html
+*.md
+!README.md
+rollup.config.js
+tsconfig.json
+.git/
+.gitignore
+node_modules/
+*.log
+*.tmp
+*.temp
+package-lock.json
+
+# Demo and test files
+demo/
+test/
+examples/
+docs/
+
+# Build artifacts
+*.tsbuildinfo
+coverage/
+.nyc_output/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# GitHub workflows
+.github/

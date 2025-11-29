@@ -1,0 +1,97 @@
+name: Auto Publish
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  auto-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Get next available version
+        run: |
+          # Get current version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT_VERSION"
+          
+          # Function to increment version
+          increment_version() {
+            local version=$1
+            local IFS='.'
+            read -ra ADDR <<< "$version"
+            ADDR[2]=$((ADDR[2] + 1))
+            echo "${ADDR[0]}.${ADDR[1]}.${ADDR[2]}"
+          }
+          
+          # Start with incremented version
+          NEW_VERSION=$(increment_version $CURRENT_VERSION)
+          
+          # Check if version exists on npm
+          while npm view armor-editor@$NEW_VERSION version &>/dev/null; do
+            echo "Version $NEW_VERSION already exists on npm, trying next..."
+            NEW_VERSION=$(increment_version $NEW_VERSION)
+          done
+          
+          # Check if git tag exists
+          while git tag -l | grep -q "^v$NEW_VERSION$"; do
+            echo "Git tag v$NEW_VERSION already exists, trying next..."
+            NEW_VERSION=$(increment_version $NEW_VERSION)
+          done
+          
+          echo "Next available version: $NEW_VERSION"
+          
+          # Update package.json
+          npm version $NEW_VERSION --no-git-tag-version
+          
+          # Update version in source file
+          sed -i "s/export const VERSION = '[^']*'/export const VERSION = '$NEW_VERSION'/" src/index.ts
+
+      - name: Build package
+        run: npm run build
+
+      - name: Publish to NPM
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create Git Tag and GitHub Release
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          git config --local user.email "technicults@gmail.com"
+          git config --local user.name "Technicults"
+          git add package.json src/index.ts
+          git commit -m "New Release v$VERSION" || true
+          git tag v$VERSION
+          git push origin main || true
+          git push origin v$VERSION
+          
+      - name: Create GitHub Release
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+        
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Release v${{ env.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

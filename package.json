@@ -1,0 +1,66 @@
+{
+  "name": "armor-editor",
+  "version": "1.0.0",
+  "description": "Advanced rich text editor with premium armor-grade security, real-time collaboration, spell checking, track changes, and framework-agnostic design for React, Vue, Angular, Next.js, Nuxt.js",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "nuxt": "./nuxt.js",
+  "files": [
+    "dist",
+    "nuxt.js",
+    "runtime",
+    "module.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w"
+  },
+  "keywords": [
+    "rich-text",
+    "editor",
+    "wysiwyg",
+    "armor-editor",
+    "collaboration",
+    "track-changes",
+    "comments",
+    "premium",
+    "spell-check",
+    "typescript",
+    "react",
+    "vue",
+    "angular",
+    "nextjs",
+    "nuxt",
+    "ssr",
+    "vanilla-js"
+  ],
+  "author": "Technicults",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/technicults/armor-editor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/technicults/armor-editor/issues"
+  },
+  "homepage": "https://github.com/technicults/armor-editor#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "browserslist": [
+    "Chrome >= 60",
+    "Firefox >= 55",
+    "Safari >= 12",
+    "Edge >= 79"
+  ],
+  "devDependencies": {
+    "rollup": "^4.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "typescript": "^5.0.0",
+    "tslib": "^2.6.0"
+  },
+  "type": "module"
+}

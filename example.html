@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ArmorEditor - Quick Start</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        h1 { color: #2c3e50; text-align: center; }
+        .editor-container { margin: 30px 0; }
+        .controls { text-align: center; margin: 20px 0; }
+        button { padding: 10px 20px; margin: 5px; border: none; background: #3498db; color: white; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #2980b9; }
+    </style>
+</head>
+<body>
+    <h1>ArmorEditor</h1>
+    <p>The most secure and comprehensive rich text editor for modern web applications</p>
+    
+    <div class="editor-container">
+        <div id="editor"></div>
+    </div>
+    
+    <div class="controls">
+        <button onclick="getContent()">Get Content</button>
+        <button onclick="setContent()">Set Sample Content</button>
+        <button onclick="clearContent()">Clear</button>
+    </div>
+
+    <script type="module">
+        // For CDN usage:
+        // import { ArmorEditor } from 'https://unpkg.com/armor-editor@latest/dist/index.esm.js';
+        
+        // For npm installation:
+        import { ArmorEditor } from './dist/index.esm.js';
+        
+        const editor = new ArmorEditor({
+            container: '#editor',
+            placeholder: 'Start typing your content here...',
+            height: '300px',
+            theme: 'light',
+            onChange: (content) => console.log('Content changed:', content),
+            onReady: () => console.log('Editor ready!')
+        });
+        
+        window.getContent = () => {
+            alert('Content: ' + editor.getContent());
+        };
+        
+        window.setContent = () => {
+            editor.setContent('<h2>Sample Content</h2><p>This is <strong>bold</strong> and <em>italic</em> text.</p>');
+        };
+        
+        window.clearContent = () => {
+            editor.setContent('');
+        };
+    </script>
+</body>
+</html>
