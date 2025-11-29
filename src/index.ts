@@ -60,7 +60,7 @@ export class ArmorEditor {
   private wordCountPanel: HTMLDivElement | null = null;
   private collaborators: Map<string, any> = new Map();
   private comments: Array<any> = [];
-  private changes: Array<any> = [];
+  private changes: Array<{id: string, type: string, text: string, author: string, timestamp: string}> = [];
   private autoSaveTimer: number | null = null;
   private spellCheckEnabled = false;
   private isSSR = false;
@@ -195,6 +195,12 @@ export class ArmorEditor {
     
     // Mark as client-side initialized
     this.isSSR = false;
+    
+    // Expose methods globally for track changes
+    (window as any).armorEditor = {
+      acceptChange: (id: string) => this.acceptChange(id),
+      rejectChange: (id: string) => this.rejectChange(id)
+    };
     
     this.options.onReady?.();
   }
@@ -961,11 +967,42 @@ export class ArmorEditor {
           by ${change.author} at ${change.timestamp}
         </div>
         <div style="margin-top: 4px;">
-          <button onclick="this.acceptChange('${change.id}')" style="padding: 2px 8px; margin-right: 4px; border: none; background: #4caf50; color: white; border-radius: 2px; cursor: pointer; font-size: 11px;">Accept</button>
-          <button onclick="this.rejectChange('${change.id}')" style="padding: 2px 8px; border: none; background: #f44336; color: white; border-radius: 2px; cursor: pointer; font-size: 11px;">Reject</button>
+          <button onclick="window.armorEditor?.acceptChange?.('${change.id}')" style="padding: 2px 8px; margin-right: 4px; border: none; background: #4caf50; color: white; border-radius: 2px; cursor: pointer; font-size: 11px;">Accept</button>
+          <button onclick="window.armorEditor?.rejectChange?.('${change.id}')" style="padding: 2px 8px; border: none; background: #f44336; color: white; border-radius: 2px; cursor: pointer; font-size: 11px;">Reject</button>
         </div>
       </div>
     `).join('');
+  }
+
+  public acceptChange(changeId: string) {
+    this.changes = this.changes.filter(c => c.id !== changeId);
+    this.updateTrackChangesDisplay();
+  }
+
+  public rejectChange(changeId: string) {
+    const change = this.changes.find(c => c.id === changeId);
+    if (change) {
+      // Revert the change
+      if (change.type === 'insert') {
+        // Remove the inserted text
+        const content = this.getContent();
+        this.setContent(content.replace(change.text, ''));
+      } else if (change.type === 'delete') {
+        // Restore the deleted text
+        this.insertHTML(change.text);
+      }
+    }
+    this.changes = this.changes.filter(c => c.id !== changeId);
+    this.updateTrackChangesDisplay();
+  }
+
+  private updateTrackChangesDisplay() {
+    if (this.trackChangesPanel) {
+      const changesList = this.trackChangesPanel.querySelector('#changes-list');
+      if (changesList) {
+        changesList.innerHTML = this.renderChanges();
+      }
+    }
   }
 
   private disableTrackChanges() {
@@ -1116,6 +1153,11 @@ export class ArmorEditor {
     const text = this.getText();
     if (!text.trim()) return;
     
+    // Get spell check options
+    const spellOptions = this.options.spellCheckOptions || {};
+    const language = spellOptions.language || 'en-US';
+    const customDict = spellOptions.customDictionary || [];
+    
     try {
       // Use LanguageTool API (free tier: 20 requests/minute)
       const response = await fetch('https://api.languagetool.org/v2/check', {
@@ -1125,14 +1167,19 @@ export class ArmorEditor {
         },
         body: new URLSearchParams({
           'text': text,
-          'language': 'en-US',
+          'language': language,
           'enabledOnly': 'false'
         })
       });
       
       if (response.ok && this.spellCheckEnabled) {
         const result = await response.json();
-        this.highlightSpellingErrors(result.matches);
+        // Filter out words in custom dictionary
+        const filteredMatches = result.matches.filter((match: any) => {
+          const word = match.context.text.substring(match.offset, match.offset + match.length);
+          return !customDict.includes(word.toLowerCase());
+        });
+        this.highlightSpellingErrors(filteredMatches);
       } else {
         // Fallback to basic spell check
         if (this.spellCheckEnabled) {
@@ -1153,7 +1200,14 @@ export class ArmorEditor {
     
     const text = this.getText();
     const words = text.split(/\s+/);
-    const misspelled = words.filter(word => this.isWordMisspelled(word));
+    const customDict = this.options.spellCheckOptions?.customDictionary || [];
+    
+    const misspelled = words.filter(word => {
+      const cleanWord = word.toLowerCase().replace(/[^a-z]/g, '');
+      return cleanWord.length > 0 && 
+             !customDict.includes(cleanWord) && 
+             this.isWordMisspelled(cleanWord);
+    });
     
     if (misspelled.length > 0) {
       this.highlightBasicErrors(misspelled);
@@ -1297,6 +1351,36 @@ export class ArmorEditor {
       popup.appendChild(noSuggestions);
     }
     
+    // Add "Add to Dictionary" option
+    const addToDictItem = document.createElement('div');
+    addToDictItem.style.cssText = `
+      padding: 8px 12px;
+      cursor: pointer;
+      border-top: 1px solid #e0e0e0;
+      color: #666;
+      font-size: 13px;
+    `;
+    addToDictItem.textContent = 'Add to Dictionary';
+    
+    addToDictItem.onmouseover = () => addToDictItem.style.background = '#f8f9fa';
+    addToDictItem.onmouseout = () => addToDictItem.style.background = 'white';
+    
+    addToDictItem.onclick = () => {
+      const errorText = errorSpan.textContent || '';
+      this.addToCustomDictionary(errorText);
+      
+      // Remove highlighting
+      const textNode = document.createTextNode(errorText);
+      const parent = errorSpan.parentNode;
+      if (parent) {
+        parent.replaceChild(textNode, errorSpan);
+        parent.normalize();
+      }
+      popup.remove();
+    };
+    
+    popup.appendChild(addToDictItem);
+    
     // Add ignore option
     const ignoreItem = document.createElement('div');
     ignoreItem.style.cssText = `
@@ -1361,6 +1445,43 @@ export class ArmorEditor {
     // Also remove popups from container if they exist there
     const containerPopups = this.container.querySelectorAll('.spell-suggestions');
     containerPopups.forEach(popup => popup.remove());
+  }
+
+  private addToCustomDictionary(word: string) {
+    if (!this.options.spellCheckOptions) {
+      this.options.spellCheckOptions = {};
+    }
+    if (!this.options.spellCheckOptions.customDictionary) {
+      this.options.spellCheckOptions.customDictionary = [];
+    }
+    
+    const cleanWord = word.toLowerCase().replace(/[^a-z]/g, '');
+    if (cleanWord && !this.options.spellCheckOptions.customDictionary.includes(cleanWord)) {
+      this.options.spellCheckOptions.customDictionary.push(cleanWord);
+      
+      // Re-run spell check to remove other instances of this word
+      if (this.spellCheckEnabled) {
+        this.clearSpellCheckHighlights();
+        setTimeout(() => this.runAdvancedSpellCheck(), 100);
+      }
+    }
+  }
+
+  public getSpellCheckOptions() {
+    return this.options.spellCheckOptions || {};
+  }
+
+  public updateSpellCheckOptions(options: {language?: string, apiKey?: string, customDictionary?: string[]}) {
+    this.options.spellCheckOptions = {
+      ...this.options.spellCheckOptions,
+      ...options
+    };
+    
+    // Re-run spell check with new options
+    if (this.spellCheckEnabled) {
+      this.clearSpellCheckHighlights();
+      setTimeout(() => this.runAdvancedSpellCheck(), 100);
+    }
   }
 
   private escapeRegex(string: string): string {
@@ -2113,8 +2234,15 @@ export class ArmorEditor {
       color: ${isDark ? '#fff' : '#000'};
     `;
     
+    // Add accessibility attributes
+    this.editor.setAttribute('role', 'textbox');
+    this.editor.setAttribute('aria-multiline', 'true');
+    this.editor.setAttribute('aria-label', 'Rich text editor');
+    this.editor.setAttribute('tabindex', '0');
+    
     if (this.options.placeholder) {
       this.editor.setAttribute('data-placeholder', this.options.placeholder);
+      this.editor.setAttribute('aria-placeholder', this.options.placeholder);
       const style = document.createElement('style');
       style.textContent = `
         [contenteditable][data-placeholder]:empty::before {
@@ -2448,10 +2576,23 @@ export class ArmorEditor {
       this.editor.removeEventListener('mouseup', this.handleMouseUp);
       this.editor.removeEventListener('keyup', this.handleKeyUp);
       this.editor.removeEventListener('focus', this.handleFocus);
+      
+      // Remove image resize listeners
+      const images = this.editor.querySelectorAll('img');
+      images.forEach(img => {
+        img.removeEventListener('mouseenter', this.handleImageMouseEnter);
+        img.removeEventListener('mouseleave', this.handleImageMouseLeave);
+      });
     }
     
     // Remove document listeners
     document.removeEventListener('selectionchange', this.handleDocumentSelectionChange);
+    
+    // Remove collaboration listeners if they exist
+    if (this.options.collaboration && this.editor) {
+      this.editor.removeEventListener('input', this.handleCollaborativeInput);
+      this.editor.removeEventListener('selectionchange', this.handleCollaborativeSelectionChange);
+    }
     
     // Clean up DOM elements
     this.colorPicker?.remove();
@@ -2476,6 +2617,23 @@ export class ArmorEditor {
       this.container.innerHTML = '';
     }
   }
+
+  // Add missing bound methods for image resize
+  private handleImageMouseEnter = (e: Event) => {
+    // Implementation for image resize hover
+  };
+
+  private handleImageMouseLeave = (e: Event) => {
+    // Implementation for image resize leave
+  };
+
+  private handleCollaborativeInput = (e: Event) => {
+    this.handleCollaborativeChange(e);
+  };
+
+  private handleCollaborativeSelectionChange = () => {
+    this.handleSelectionChange();
+  };
 }
 
 // Auto-initialization for data attributes (SSR-safe)

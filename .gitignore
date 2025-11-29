@@ -5,7 +5,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Build outputs (now committed for faster CI)
-# dist/
+dist/
 build/
 *.tsbuildinfo
 
