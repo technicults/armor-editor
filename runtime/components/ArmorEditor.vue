@@ -101,7 +101,8 @@ const {
     emit('change', newContent)
   },
   onReady: () => {
-    if (props.modelValue) {
+    if (props.modelValue && !content.value) {
+      // Only set initial content if editor is empty
       setContent(props.modelValue)
     }
     emit('ready', editor.value)
@@ -110,10 +111,14 @@ const {
 
 // Watch for external content changes
 watch(() => props.modelValue, (newValue) => {
-  if (newValue !== content.value) {
-    setContent(newValue)
+  if (newValue !== content.value && editor.value) {
+    // Only update if editor is ready and content is different
+    const currentContent = getContent()
+    if (newValue !== currentContent) {
+      setContent(newValue)
+    }
   }
-})
+}, { immediate: false })
 
 // Expose methods for template refs
 defineExpose({

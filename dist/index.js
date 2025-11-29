@@ -37,7 +37,7 @@ const icons = {
 };
 
 // Version info
-const VERSION = '1.0.0';
+const VERSION = '1.0.2';
 class ArmorEditor {
     constructor(options) {
         this.colorPicker = null;
@@ -292,10 +292,11 @@ class ArmorEditor {
             const button = document.createElement('button');
             button.innerHTML = btn.icon;
             button.title = btn.title;
-            button.style.cssText = `
+            button.setAttribute('data-button-type', type);
+            const getButtonStyle = (isActive = false) => `
         padding: 8px;
         border: 1px solid ${isDark ? '#555' : '#ccc'};
-        background: ${isDark ? '#444' : '#fff'};
+        background: ${isActive ? (isDark ? '#555' : '#e0e0e0') : (isDark ? '#444' : '#fff')};
         color: ${isDark ? '#fff' : '#000'};
         cursor: pointer;
         border-radius: 4px;
@@ -306,25 +307,88 @@ class ArmorEditor {
         height: 32px;
         transition: all 0.2s ease;
       `;
+            button.style.cssText = getButtonStyle(false);
             // Add hover effects
             button.onmouseenter = () => {
-                button.style.background = isDark ? '#555' : '#f0f0f0';
-                button.style.transform = 'translateY(-1px)';
+                if (!button.classList.contains('active')) {
+                    button.style.background = isDark ? '#555' : '#f0f0f0';
+                    button.style.transform = 'translateY(-1px)';
+                }
             };
             button.onmouseleave = () => {
-                button.style.background = isDark ? '#444' : '#fff';
-                button.style.transform = 'translateY(0)';
+                if (!button.classList.contains('active')) {
+                    button.style.background = isDark ? '#444' : '#fff';
+                    button.style.transform = 'translateY(0)';
+                }
+                else {
+                    // Maintain active state
+                    button.style.background = '#007cba';
+                    button.style.transform = 'translateY(0)';
+                }
             };
             button.onmousedown = e => {
                 e.preventDefault();
                 button.style.transform = 'translateY(0)';
-                button.style.background = isDark ? '#666' : '#e0e0e0';
+                if (!button.classList.contains('active')) {
+                    button.style.background = isDark ? '#666' : '#e0e0e0';
+                }
             };
             button.onmouseup = () => {
-                button.style.background = isDark ? '#555' : '#f0f0f0';
+                if (!button.classList.contains('active')) {
+                    button.style.background = isDark ? '#555' : '#f0f0f0';
+                }
+                else {
+                    button.style.background = '#007cba';
+                }
             };
-            button.onclick = btn.action;
+            button.onclick = () => {
+                btn.action();
+                // Update active state for toggle buttons
+                if (['spellCheck', 'trackChanges', 'comments', 'wordCount'].includes(type)) {
+                    this.updateButtonActiveState(type);
+                }
+                // Update formatting button states after formatting commands
+                if (['bold', 'italic', 'underline', 'strikethrough'].includes(type)) {
+                    setTimeout(() => this.updateFormattingButtonStates(), 10);
+                }
+            };
             this.toolbar.appendChild(button);
+        }
+    }
+    updateButtonActiveState(buttonType) {
+        var _a, _b;
+        const button = this.toolbar.querySelector(`[data-button-type="${buttonType}"]`);
+        if (!button)
+            return;
+        const isDark = this.options.theme === 'dark';
+        let isActive = false;
+        // Determine if button should be active
+        switch (buttonType) {
+            case 'spellCheck':
+                isActive = this.spellCheckEnabled;
+                break;
+            case 'trackChanges':
+                isActive = this.options.trackChanges || false;
+                break;
+            case 'comments':
+                isActive = ((_a = this.commentSidebar) === null || _a === void 0 ? void 0 : _a.style.display) !== 'none';
+                break;
+            case 'wordCount':
+                isActive = ((_b = this.wordCountPanel) === null || _b === void 0 ? void 0 : _b.style.display) !== 'none';
+                break;
+        }
+        // Update button appearance
+        if (isActive) {
+            button.classList.add('active');
+            button.style.background = isDark ? '#007cba' : '#007cba';
+            button.style.color = '#fff';
+            button.style.borderColor = '#007cba';
+        }
+        else {
+            button.classList.remove('active');
+            button.style.background = isDark ? '#444' : '#fff';
+            button.style.color = isDark ? '#fff' : '#000';
+            button.style.borderColor = isDark ? '#555' : '#ccc';
         }
     }
     createFontSizeSelect() {
@@ -422,6 +486,10 @@ class ArmorEditor {
       grid-template-columns: repeat(8, 1fr);
       gap: 4px;
     `;
+        // Position relative to container, not body
+        this.container.getBoundingClientRect();
+        this.colorPicker.style.left = '10px';
+        this.colorPicker.style.top = '50px';
         const colors = ['#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFFFFF',
             '#800000', '#008000', '#000080', '#808000', '#800080', '#008080', '#C0C0C0', '#808080'];
         colors.forEach(color => {
@@ -435,7 +503,7 @@ class ArmorEditor {
         border-radius: 2px;
       `;
             colorBtn.onclick = () => {
-                this.execCommand(type === 'color' ? 'foreColor' : 'backColor', color);
+                this.applyColor(type, color);
                 if (this.colorPicker) {
                     this.colorPicker.remove();
                     this.colorPicker = null;
@@ -445,16 +513,45 @@ class ArmorEditor {
                 this.colorPicker.appendChild(colorBtn);
             }
         });
-        document.body.appendChild(this.colorPicker);
+        // Append to container instead of body
+        this.container.style.position = 'relative';
+        this.container.appendChild(this.colorPicker);
         setTimeout(() => {
-            document.addEventListener('click', () => {
-                var _a;
-                (_a = this.colorPicker) === null || _a === void 0 ? void 0 : _a.remove();
-                this.colorPicker = null;
+            document.addEventListener('click', (e) => {
+                if (this.colorPicker && !this.colorPicker.contains(e.target)) {
+                    this.colorPicker.remove();
+                    this.colorPicker = null;
+                }
             }, { once: true });
         }, 100);
     }
+    applyColor(type, color) {
+        this.editor.focus();
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            if (!range.collapsed) {
+                const span = document.createElement('span');
+                if (type === 'color') {
+                    span.style.color = color;
+                }
+                else {
+                    span.style.backgroundColor = color;
+                }
+                try {
+                    range.surroundContents(span);
+                }
+                catch (e) {
+                    span.appendChild(range.extractContents());
+                    range.insertNode(span);
+                }
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+    }
     showLinkDialog() {
+        var _a, _b, _c;
         this.linkDialog = document.createElement('div');
         this.linkDialog.style.cssText = `
       position: fixed;
@@ -478,9 +575,11 @@ class ArmorEditor {
         <button style="padding: 8px 16px; border: none; background: #007cba; color: white; border-radius: 4px; cursor: pointer;">Insert</button>
       </div>
     `;
-        const insertBtn = this.linkDialog.querySelector('button:last-child');
-        const urlInput = this.linkDialog.querySelector('input[type="text"]:first-of-type');
-        const textInput = this.linkDialog.querySelector('input[type="text"]:last-of-type');
+        const insertBtn = (_a = this.linkDialog) === null || _a === void 0 ? void 0 : _a.querySelector('button:last-child');
+        const urlInput = (_b = this.linkDialog) === null || _b === void 0 ? void 0 : _b.querySelector('input[type="text"]:first-of-type');
+        const textInput = (_c = this.linkDialog) === null || _c === void 0 ? void 0 : _c.querySelector('input[type="text"]:last-of-type');
+        if (!insertBtn || !urlInput || !textInput)
+            return;
         insertBtn.onclick = () => {
             var _a;
             const url = (urlInput === null || urlInput === void 0 ? void 0 : urlInput.value) || '';
@@ -504,6 +603,7 @@ class ArmorEditor {
         document.body.appendChild(this.linkDialog);
     }
     showImageDialog() {
+        var _a, _b, _c, _d;
         this.imageDialog = document.createElement('div');
         this.imageDialog.style.cssText = `
       position: fixed;
@@ -528,10 +628,12 @@ class ArmorEditor {
         <button style="padding: 8px 16px; border: none; background: #007cba; color: white; border-radius: 4px; cursor: pointer;">Insert</button>
       </div>
     `;
-        const insertBtn = this.imageDialog.querySelector('button:last-child');
-        const urlInput = this.imageDialog.querySelector('input[type="text"]:first-of-type');
-        const fileInput = this.imageDialog.querySelector('input[type="file"]');
-        const altInput = this.imageDialog.querySelector('input[type="text"]:last-of-type');
+        const insertBtn = (_a = this.imageDialog) === null || _a === void 0 ? void 0 : _a.querySelector('button:last-child');
+        const urlInput = (_b = this.imageDialog) === null || _b === void 0 ? void 0 : _b.querySelector('input[type="text"]:first-of-type');
+        const fileInput = (_c = this.imageDialog) === null || _c === void 0 ? void 0 : _c.querySelector('input[type="file"]');
+        const altInput = (_d = this.imageDialog) === null || _d === void 0 ? void 0 : _d.querySelector('input[type="text"]:last-of-type');
+        if (!insertBtn || !urlInput || !fileInput || !altInput)
+            return;
         insertBtn.onclick = () => {
             var _a, _b;
             const url = (urlInput === null || urlInput === void 0 ? void 0 : urlInput.value) || '';
@@ -554,19 +656,35 @@ class ArmorEditor {
         document.body.appendChild(this.imageDialog);
     }
     insertImage(src, alt = '') {
+        var _a, _b;
         const img = document.createElement('img');
         img.src = src;
         img.alt = alt;
         img.style.maxWidth = '100%';
         img.style.height = 'auto';
+        img.style.display = 'block';
+        img.style.margin = '10px 0';
+        this.editor.focus();
         const selection = window.getSelection();
-        if (selection === null || selection === void 0 ? void 0 : selection.rangeCount) {
+        if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
+            range.deleteContents();
             range.insertNode(img);
-            range.collapse(false);
+            // Move cursor after image
+            range.setStartAfter(img);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
         }
+        else {
+            // Fallback: append to editor
+            this.editor.appendChild(img);
+        }
+        // Trigger change event
+        (_b = (_a = this.options).onChange) === null || _b === void 0 ? void 0 : _b.call(_a, this.getContent());
     }
     showTableDialog() {
+        var _a, _b, _c;
         this.tableDialog = document.createElement('div');
         this.tableDialog.style.cssText = `
       position: fixed;
@@ -590,9 +708,11 @@ class ArmorEditor {
         <button style="padding: 8px 16px; border: none; background: #007cba; color: white; border-radius: 4px; cursor: pointer;">Insert</button>
       </div>
     `;
-        const insertBtn = this.tableDialog.querySelector('button:last-child');
-        const rowsInput = this.tableDialog.querySelector('input[type="number"]:first-of-type');
-        const colsInput = this.tableDialog.querySelector('input[type="number"]:last-of-type');
+        const insertBtn = (_a = this.tableDialog) === null || _a === void 0 ? void 0 : _a.querySelector('button:last-child');
+        const rowsInput = (_b = this.tableDialog) === null || _b === void 0 ? void 0 : _b.querySelector('input[type="number"]:first-of-type');
+        const colsInput = (_c = this.tableDialog) === null || _c === void 0 ? void 0 : _c.querySelector('input[type="number"]:last-of-type');
+        if (!insertBtn || !rowsInput || !colsInput)
+            return;
         insertBtn.onclick = () => {
             var _a;
             const rows = parseInt((rowsInput === null || rowsInput === void 0 ? void 0 : rowsInput.value) || '3');
@@ -643,8 +763,10 @@ class ArmorEditor {
         else {
             this.disableTrackChanges();
         }
+        this.updateButtonActiveState('trackChanges');
     }
     enableTrackChanges() {
+        var _a;
         if (!this.trackChangesPanel) {
             this.trackChangesPanel = document.createElement('div');
             this.trackChangesPanel.style.cssText = `
@@ -668,12 +790,14 @@ class ArmorEditor {
         <button id="close-changes-btn" style="margin-top: 10px; padding: 5px 10px; border: 1px solid #ccc; background: #f5f5f5; border-radius: 4px; cursor: pointer;">Close</button>
       `;
             this.trackChangesPanel.innerHTML = changesHtml;
-            const closeBtn = this.trackChangesPanel.querySelector('#close-changes-btn');
-            closeBtn.onclick = () => {
-                if (this.trackChangesPanel) {
-                    this.trackChangesPanel.style.display = 'none';
-                }
-            };
+            const closeBtn = (_a = this.trackChangesPanel) === null || _a === void 0 ? void 0 : _a.querySelector('#close-changes-btn');
+            if (closeBtn) {
+                closeBtn.onclick = () => {
+                    if (this.trackChangesPanel) {
+                        this.trackChangesPanel.style.display = 'none';
+                    }
+                };
+            }
             document.body.appendChild(this.trackChangesPanel);
         }
         this.trackChangesPanel.style.display = 'block';
@@ -704,8 +828,10 @@ class ArmorEditor {
             this.createCommentSidebar();
         }
         this.commentSidebar.style.display = this.commentSidebar.style.display === 'none' ? 'block' : 'none';
+        this.updateButtonActiveState('comments');
     }
     createCommentSidebar() {
+        var _a, _b, _c;
         this.commentSidebar = document.createElement('div');
         this.commentSidebar.style.cssText = `
       position: fixed;
@@ -732,15 +858,17 @@ class ArmorEditor {
     `;
         this.commentSidebar.innerHTML = commentsHtml;
         // Add event listeners
-        const addBtn = this.commentSidebar.querySelector('#add-comment-btn');
-        const closeBtn = this.commentSidebar.querySelector('#close-comments-btn');
-        const input = this.commentSidebar.querySelector('#comment-input');
-        addBtn.onclick = () => this.addComment(input.value);
-        closeBtn.onclick = () => {
-            if (this.commentSidebar) {
-                this.commentSidebar.style.display = 'none';
-            }
-        };
+        const addBtn = (_a = this.commentSidebar) === null || _a === void 0 ? void 0 : _a.querySelector('#add-comment-btn');
+        const closeBtn = (_b = this.commentSidebar) === null || _b === void 0 ? void 0 : _b.querySelector('#close-comments-btn');
+        const input = (_c = this.commentSidebar) === null || _c === void 0 ? void 0 : _c.querySelector('#comment-input');
+        if (addBtn && closeBtn && input) {
+            addBtn.onclick = () => this.addComment(input.value);
+            closeBtn.onclick = () => {
+                if (this.commentSidebar) {
+                    this.commentSidebar.style.display = 'none';
+                }
+            };
+        }
         document.body.appendChild(this.commentSidebar);
     }
     renderComments() {
@@ -784,6 +912,8 @@ class ArmorEditor {
         else {
             this.clearSpellCheckHighlights();
         }
+        // Update button visual state
+        this.updateButtonActiveState('spellCheck');
     }
     setupSpellCheckListener() {
         // Debounced spell check on typing
@@ -902,8 +1032,13 @@ class ArmorEditor {
       max-width: 250px;
     `;
         const rect = errorSpan.getBoundingClientRect();
-        popup.style.left = rect.left + 'px';
-        popup.style.top = (rect.bottom + 5) + 'px';
+        const containerRect = this.container.getBoundingClientRect();
+        // Position relative to container
+        popup.style.left = (rect.left - containerRect.left) + 'px';
+        popup.style.top = (rect.bottom - containerRect.top + 5) + 'px';
+        // Ensure popup stays within container bounds
+        this.container.style.position = 'relative';
+        this.container.appendChild(popup);
         // Add suggestions
         if (suggestions.length > 0) {
             suggestions.forEach(suggestion => {
@@ -918,11 +1053,17 @@ class ArmorEditor {
                 item.onmouseover = () => item.style.background = '#f8f9fa';
                 item.onmouseout = () => item.style.background = 'white';
                 item.onclick = () => {
-                    errorSpan.textContent = suggestion;
-                    errorSpan.style.background = 'transparent';
-                    errorSpan.style.borderBottom = 'none';
-                    errorSpan.classList.remove('spell-error');
+                    var _a, _b;
+                    // Replace only the text content, not HTML
+                    const textNode = document.createTextNode(suggestion);
+                    const parent = errorSpan.parentNode;
+                    if (parent) {
+                        parent.replaceChild(textNode, errorSpan);
+                        parent.normalize(); // Merge adjacent text nodes
+                    }
                     popup.remove();
+                    // Trigger change event
+                    (_b = (_a = this.options).onChange) === null || _b === void 0 ? void 0 : _b.call(_a, this.getContent());
                 };
                 popup.appendChild(item);
             });
@@ -946,13 +1087,18 @@ class ArmorEditor {
         ignoreItem.onmouseover = () => ignoreItem.style.background = '#f8f9fa';
         ignoreItem.onmouseout = () => ignoreItem.style.background = 'white';
         ignoreItem.onclick = () => {
-            errorSpan.style.background = 'transparent';
-            errorSpan.style.borderBottom = 'none';
-            errorSpan.classList.remove('spell-error');
+            // Remove highlighting but keep as text node
+            const textNode = document.createTextNode(errorSpan.textContent || '');
+            const parent = errorSpan.parentNode;
+            if (parent) {
+                parent.replaceChild(textNode, errorSpan);
+                parent.normalize();
+            }
             popup.remove();
         };
         popup.appendChild(ignoreItem);
-        document.body.appendChild(popup);
+        // Remove the document.body.appendChild line since we're using container
+        // document.body.appendChild(popup);
         // Remove popup when clicking outside
         setTimeout(() => {
             const handleClickOutside = (e) => {
@@ -1104,8 +1250,10 @@ class ArmorEditor {
         <button style="padding: 8px 16px; border: none; background: #007cba; color: white; border-radius: 4px; cursor: pointer;">Embed</button>
       </div>
     `;
-        const embedBtn = mediaDialog.querySelector('button:last-child');
-        const urlInput = mediaDialog.querySelector('input');
+        const embedBtn = mediaDialog === null || mediaDialog === void 0 ? void 0 : mediaDialog.querySelector('button:last-child');
+        const urlInput = mediaDialog === null || mediaDialog === void 0 ? void 0 : mediaDialog.querySelector('input');
+        if (!embedBtn || !urlInput)
+            return;
         embedBtn.onclick = () => {
             const url = urlInput.value;
             if (url) {
@@ -1366,6 +1514,7 @@ class ArmorEditor {
         }
         this.wordCountPanel.style.display = this.wordCountPanel.style.display === 'none' ? 'block' : 'none';
         this.updateWordCount();
+        this.updateButtonActiveState('wordCount');
     }
     createWordCountPanel() {
         this.wordCountPanel = document.createElement('div');
@@ -1644,6 +1793,7 @@ class ArmorEditor {
         const isDark = this.options.theme === 'dark';
         this.editor = document.createElement('div');
         this.editor.contentEditable = 'true';
+        this.editor.className = 'armor-editor-content';
         this.editor.style.cssText = `
       padding: 12px;
       min-height: ${this.options.height || '300px'};
@@ -1674,6 +1824,17 @@ class ArmorEditor {
             (_b = (_a = this.options).onChange) === null || _b === void 0 ? void 0 : _b.call(_a, this.getContent());
             this.updateWordCount();
         });
+        // Update button states on selection change
+        this.editor.addEventListener('selectionchange', () => {
+            this.updateFormattingButtonStates();
+        });
+        // Also update on mouse up and key up for immediate feedback
+        this.editor.addEventListener('mouseup', () => {
+            setTimeout(() => this.updateFormattingButtonStates(), 10);
+        });
+        this.editor.addEventListener('keyup', () => {
+            setTimeout(() => this.updateFormattingButtonStates(), 10);
+        });
         this.editor.addEventListener('keydown', (e) => {
             if (e.ctrlKey || e.metaKey) {
                 const shortcuts = {
@@ -1688,6 +1849,8 @@ class ArmorEditor {
                 if (shortcuts[e.key]) {
                     e.preventDefault();
                     shortcuts[e.key]();
+                    // Update button states after formatting command
+                    setTimeout(() => this.updateFormattingButtonStates(), 10);
                 }
             }
             if (e.key === 'Tab') {
@@ -1706,9 +1869,96 @@ class ArmorEditor {
             this.execCommand('insertText', text);
         });
     }
+    updateFormattingButtonStates() {
+        if (!this.toolbar)
+            return;
+        const formattingButtons = ['bold', 'italic', 'underline', 'strikethrough'];
+        formattingButtons.forEach(buttonType => {
+            const button = this.toolbar.querySelector(`[data-button-type="${buttonType}"]`);
+            if (!button)
+                return;
+            const isActive = this.isFormatActive(buttonType);
+            this.setButtonActiveState(button, isActive, buttonType);
+        });
+    }
+    isFormatActive(format) {
+        try {
+            const selection = window.getSelection();
+            if (!selection || selection.rangeCount === 0)
+                return false;
+            // Check if the current selection or cursor position has the format
+            const range = selection.getRangeAt(0);
+            let element = range.commonAncestorContainer;
+            // If it's a text node, get its parent element
+            if (element.nodeType === Node.TEXT_NODE) {
+                element = element.parentElement;
+            }
+            // Check the element and its parents for formatting
+            while (element && element !== this.editor && element instanceof HTMLElement) {
+                const style = window.getComputedStyle(element);
+                switch (format) {
+                    case 'bold':
+                        if (element.tagName === 'B' || element.tagName === 'STRONG' ||
+                            style.fontWeight === 'bold' || parseInt(style.fontWeight) >= 700) {
+                            return true;
+                        }
+                        break;
+                    case 'italic':
+                        if (element.tagName === 'I' || element.tagName === 'EM' ||
+                            style.fontStyle === 'italic') {
+                            return true;
+                        }
+                        break;
+                    case 'underline':
+                        if (element.tagName === 'U' ||
+                            style.textDecoration.includes('underline')) {
+                            return true;
+                        }
+                        break;
+                    case 'strikethrough':
+                        if (element.tagName === 'S' || element.tagName === 'STRIKE' ||
+                            style.textDecoration.includes('line-through')) {
+                            return true;
+                        }
+                        break;
+                }
+                element = element.parentElement;
+            }
+            return false;
+        }
+        catch (error) {
+            return false;
+        }
+    }
+    setButtonActiveState(button, isActive, buttonType) {
+        const isDark = this.options.theme === 'dark';
+        if (isActive) {
+            button.classList.add('active');
+            button.style.background = '#007cba';
+            button.style.color = '#fff';
+            button.style.borderColor = '#007cba';
+        }
+        else {
+            button.classList.remove('active');
+            button.style.background = isDark ? '#444' : '#fff';
+            button.style.color = isDark ? '#fff' : '#000';
+            button.style.borderColor = isDark ? '#555' : '#ccc';
+        }
+    }
     execCommand(command, value) {
         this.editor.focus();
-        document.execCommand(command, false, value);
+        // Check if execCommand is available (not in Node.js/JSDOM)
+        if (typeof document.execCommand === 'function') {
+            document.execCommand(command, false, value);
+        }
+        else {
+            // Fallback for testing environments
+            console.warn('execCommand not available, using fallback');
+            if (command === 'insertHTML' && value) {
+                // Simple fallback for insertHTML
+                this.editor.innerHTML += value;
+            }
+        }
     }
     getContent() {
         if (this.isSSR || !this.editor)
@@ -1794,7 +2044,10 @@ class ArmorEditor {
 // Auto-initialization for data attributes (SSR-safe)
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     const initializeEditors = () => {
-        document.querySelectorAll('[data-armor-editor]').forEach(el => {
+        const elements = document.querySelectorAll('[data-armor-editor]');
+        if (!elements.length)
+            return;
+        elements.forEach(el => {
             try {
                 const height = el.getAttribute('data-height') || '300px';
                 const theme = el.getAttribute('data-theme') || 'light';

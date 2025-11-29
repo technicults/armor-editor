@@ -43,18 +43,44 @@ export const useArmorEditor = (options = {}) => {
   }
 
   const setContent = (html) => {
-    if (editor.value) {
+    if (editor.value && typeof html === 'string') {
+      // Save cursor position
+      const selection = window.getSelection()
+      let range = null
+      if (selection && selection.rangeCount > 0) {
+        range = selection.getRangeAt(0).cloneRange()
+      }
+      
       editor.value.setContent(html)
+      
+      // Restore cursor position if possible
+      if (range && selection) {
+        try {
+          selection.removeAllRanges()
+          selection.addRange(range)
+        } catch (e) {
+          // Ignore errors - cursor will just be at end
+        }
+      }
     }
-    content.value = html
+    content.value = html || ''
   }
 
   const getContent = () => {
-    return editor.value ? editor.value.getContent() : content.value
+    try {
+      return editor.value ? editor.value.getContent() : content.value
+    } catch (error) {
+      console.warn('Failed to get content:', error)
+      return content.value || ''
+    }
   }
 
   const focus = () => {
-    editor.value?.focus()
+    try {
+      editor.value?.focus()
+    } catch (error) {
+      console.warn('Failed to focus editor:', error)
+    }
   }
 
   onMounted(() => {

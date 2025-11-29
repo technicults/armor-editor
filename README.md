@@ -287,6 +287,11 @@ const editor = new ArmorEditor({
   // Toolbar
   toolbar: true, // or custom array
   
+  // Advanced Options
+  language: 'en-US',
+  customFonts: ['Inter', 'Roboto'],
+  customCSS: '.editor { border-radius: 8px; }',
+  
   // Events
   onChange: (content) => console.log(content),
   onReady: () => console.log('Ready!')
@@ -718,12 +723,15 @@ useEffect(() => {
 }, []);
 ```
 
-3. **Use lazy loading** for large documents
+3. **Use proper configuration** for large documents
 ```javascript
 const editor = new ArmorEditor({
   container: '#editor',
-  lazyLoad: true,
-  chunkSize: 1000 // Load 1000 chars at a time
+  height: '600px',
+  autoSave: {
+    interval: 30000, // Auto-save every 30 seconds
+    callback: (content) => saveContent(content)
+  }
 });
 ```
 

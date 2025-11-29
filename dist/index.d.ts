@@ -1,4 +1,4 @@
-export declare const VERSION = "1.0.0";
+export declare const VERSION = "1.0.2";
 export interface EditorOptions {
     container: HTMLElement | string;
     placeholder?: string;
@@ -19,6 +19,11 @@ export interface EditorOptions {
     trackChanges?: boolean;
     comments?: boolean;
     spellCheck?: boolean;
+    spellCheckOptions?: {
+        language?: string;
+        apiKey?: string;
+        customDictionary?: string[];
+    };
     wordCount?: boolean;
     autoSave?: {
         interval: number;
@@ -37,6 +42,7 @@ export interface EditorOptions {
         }>;
     };
     customFonts?: string[];
+    customCSS?: string;
 }
 export declare class ArmorEditor {
     private container;
@@ -66,9 +72,11 @@ export declare class ArmorEditor {
     private setupStyles;
     private createToolbar;
     private createToolbarButton;
+    private updateButtonActiveState;
     private createFontSizeSelect;
     private createFontFamilySelect;
     private showColorPicker;
+    private applyColor;
     private showLinkDialog;
     private showImageDialog;
     private insertImage;
@@ -121,6 +129,9 @@ export declare class ArmorEditor {
     private simulateCollaborators;
     private createEditor;
     private attachEvents;
+    private updateFormattingButtonStates;
+    private isFormatActive;
+    private setButtonActiveState;
     private execCommand;
     getContent(): string;
     setContent(html: string): void;

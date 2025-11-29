@@ -23,6 +23,11 @@ export interface EditorOptions {
   trackChanges?: boolean;
   comments?: boolean;
   spellCheck?: boolean;
+  spellCheckOptions?: {
+    language?: string;
+    apiKey?: string;
+    customDictionary?: string[];
+  };
   wordCount?: boolean;
   autoSave?: {
     interval: number;
@@ -38,6 +43,7 @@ export interface EditorOptions {
     feeds: Array<{name: string, id: string}>;
   };
   customFonts?: string[];
+  customCSS?: string;
 }
 
 export class ArmorEditor {
@@ -315,10 +321,12 @@ export class ArmorEditor {
       const button = document.createElement('button');
       button.innerHTML = btn.icon;
       button.title = btn.title;
-      button.style.cssText = `
+      button.setAttribute('data-button-type', type);
+      
+      const getButtonStyle = (isActive = false) => `
         padding: 8px;
         border: 1px solid ${isDark ? '#555' : '#ccc'};
-        background: ${isDark ? '#444' : '#fff'};
+        background: ${isActive ? (isDark ? '#555' : '#e0e0e0') : (isDark ? '#444' : '#fff')};
         color: ${isDark ? '#fff' : '#000'};
         cursor: pointer;
         border-radius: 4px;
@@ -330,29 +338,95 @@ export class ArmorEditor {
         transition: all 0.2s ease;
       `;
       
+      button.style.cssText = getButtonStyle(false);
+      
       // Add hover effects
       button.onmouseenter = () => {
-        button.style.background = isDark ? '#555' : '#f0f0f0';
-        button.style.transform = 'translateY(-1px)';
+        if (!button.classList.contains('active')) {
+          button.style.background = isDark ? '#555' : '#f0f0f0';
+          button.style.transform = 'translateY(-1px)';
+        }
       };
       
       button.onmouseleave = () => {
-        button.style.background = isDark ? '#444' : '#fff';
-        button.style.transform = 'translateY(0)';
+        if (!button.classList.contains('active')) {
+          button.style.background = isDark ? '#444' : '#fff';
+          button.style.transform = 'translateY(0)';
+        } else {
+          // Maintain active state
+          button.style.background = '#007cba';
+          button.style.transform = 'translateY(0)';
+        }
       };
       
       button.onmousedown = e => {
         e.preventDefault();
         button.style.transform = 'translateY(0)';
-        button.style.background = isDark ? '#666' : '#e0e0e0';
+        if (!button.classList.contains('active')) {
+          button.style.background = isDark ? '#666' : '#e0e0e0';
+        }
       };
       
       button.onmouseup = () => {
-        button.style.background = isDark ? '#555' : '#f0f0f0';
+        if (!button.classList.contains('active')) {
+          button.style.background = isDark ? '#555' : '#f0f0f0';
+        } else {
+          button.style.background = '#007cba';
+        }
       };
       
-      button.onclick = btn.action;
+      button.onclick = () => {
+        btn.action();
+        
+        // Update active state for toggle buttons
+        if (['spellCheck', 'trackChanges', 'comments', 'wordCount'].includes(type)) {
+          this.updateButtonActiveState(type);
+        }
+        
+        // Update formatting button states after formatting commands
+        if (['bold', 'italic', 'underline', 'strikethrough'].includes(type)) {
+          setTimeout(() => this.updateFormattingButtonStates(), 10);
+        }
+      };
+      
       this.toolbar.appendChild(button);
+    }
+  }
+
+  private updateButtonActiveState(buttonType: string) {
+    const button = this.toolbar.querySelector(`[data-button-type="${buttonType}"]`) as HTMLButtonElement;
+    if (!button) return;
+    
+    const isDark = this.options.theme === 'dark';
+    let isActive = false;
+    
+    // Determine if button should be active
+    switch (buttonType) {
+      case 'spellCheck':
+        isActive = this.spellCheckEnabled;
+        break;
+      case 'trackChanges':
+        isActive = this.options.trackChanges || false;
+        break;
+      case 'comments':
+        isActive = this.commentSidebar?.style.display !== 'none';
+        break;
+      case 'wordCount':
+        isActive = this.wordCountPanel?.style.display !== 'none';
+        break;
+    }
+    
+    // Update button appearance
+    if (isActive) {
+      button.classList.add('active');
+      button.style.background = isDark ? '#007cba' : '#007cba';
+      button.style.color = '#fff';
+      button.style.borderColor = '#007cba';
+    } else {
+      button.classList.remove('active');
+      button.style.background = isDark ? '#444' : '#fff';
+      button.style.color = isDark ? '#fff' : '#000';
+      button.style.borderColor = isDark ? '#555' : '#ccc';
     }
   }
 
@@ -462,6 +536,11 @@ export class ArmorEditor {
       gap: 4px;
     `;
     
+    // Position relative to container, not body
+    const containerRect = this.container.getBoundingClientRect();
+    this.colorPicker.style.left = '10px';
+    this.colorPicker.style.top = '50px';
+    
     const colors = ['#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFFFFF',
                    '#800000', '#008000', '#000080', '#808000', '#800080', '#008080', '#C0C0C0', '#808080'];
     
@@ -476,7 +555,7 @@ export class ArmorEditor {
         border-radius: 2px;
       `;
       colorBtn.onclick = () => {
-        this.execCommand(type === 'color' ? 'foreColor' : 'backColor', color);
+        this.applyColor(type, color);
         if (this.colorPicker) {
           this.colorPicker.remove();
           this.colorPicker = null;
@@ -487,14 +566,42 @@ export class ArmorEditor {
       }
     });
     
-    document.body.appendChild(this.colorPicker);
+    // Append to container instead of body
+    this.container.style.position = 'relative';
+    this.container.appendChild(this.colorPicker);
     
     setTimeout(() => {
-      document.addEventListener('click', () => {
-        this.colorPicker?.remove();
-        this.colorPicker = null;
+      document.addEventListener('click', (e) => {
+        if (this.colorPicker && !this.colorPicker.contains(e.target as Node)) {
+          this.colorPicker.remove();
+          this.colorPicker = null;
+        }
       }, { once: true });
     }, 100);
+  }
+
+  private applyColor(type: 'color' | 'backgroundColor', color: string) {
+    this.editor.focus();
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      if (!range.collapsed) {
+        const span = document.createElement('span');
+        if (type === 'color') {
+          span.style.color = color;
+        } else {
+          span.style.backgroundColor = color;
+        }
+        try {
+          range.surroundContents(span);
+        } catch (e) {
+          span.appendChild(range.extractContents());
+          range.insertNode(span);
+        }
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
   }
 
   private showLinkDialog() {
@@ -523,9 +630,11 @@ export class ArmorEditor {
       </div>
     `;
     
-    const insertBtn = this.linkDialog.querySelector('button:last-child') as HTMLButtonElement;
-    const urlInput = this.linkDialog.querySelector('input[type="text"]:first-of-type') as HTMLInputElement;
-    const textInput = this.linkDialog.querySelector('input[type="text"]:last-of-type') as HTMLInputElement;
+    const insertBtn = this.linkDialog?.querySelector('button:last-child') as HTMLButtonElement;
+    const urlInput = this.linkDialog?.querySelector('input[type="text"]:first-of-type') as HTMLInputElement;
+    const textInput = this.linkDialog?.querySelector('input[type="text"]:last-of-type') as HTMLInputElement;
+    
+    if (!insertBtn || !urlInput || !textInput) return;
     
     insertBtn.onclick = () => {
       const url = urlInput?.value || '';
@@ -577,10 +686,12 @@ export class ArmorEditor {
       </div>
     `;
     
-    const insertBtn = this.imageDialog.querySelector('button:last-child') as HTMLButtonElement;
-    const urlInput = this.imageDialog.querySelector('input[type="text"]:first-of-type') as HTMLInputElement;
-    const fileInput = this.imageDialog.querySelector('input[type="file"]') as HTMLInputElement;
-    const altInput = this.imageDialog.querySelector('input[type="text"]:last-of-type') as HTMLInputElement;
+    const insertBtn = this.imageDialog?.querySelector('button:last-child') as HTMLButtonElement;
+    const urlInput = this.imageDialog?.querySelector('input[type="text"]:first-of-type') as HTMLInputElement;
+    const fileInput = this.imageDialog?.querySelector('input[type="file"]') as HTMLInputElement;
+    const altInput = this.imageDialog?.querySelector('input[type="text"]:last-of-type') as HTMLInputElement;
+    
+    if (!insertBtn || !urlInput || !fileInput || !altInput) return;
     
     insertBtn.onclick = () => {
       const url = urlInput?.value || '';
@@ -609,13 +720,28 @@ export class ArmorEditor {
     img.alt = alt;
     img.style.maxWidth = '100%';
     img.style.height = 'auto';
+    img.style.display = 'block';
+    img.style.margin = '10px 0';
     
+    this.editor.focus();
     const selection = window.getSelection();
-    if (selection?.rangeCount) {
+    if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
+      range.deleteContents();
       range.insertNode(img);
-      range.collapse(false);
+      
+      // Move cursor after image
+      range.setStartAfter(img);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } else {
+      // Fallback: append to editor
+      this.editor.appendChild(img);
     }
+    
+    // Trigger change event
+    this.options.onChange?.(this.getContent());
   }
 
   private showTableDialog() {
@@ -644,9 +770,11 @@ export class ArmorEditor {
       </div>
     `;
     
-    const insertBtn = this.tableDialog.querySelector('button:last-child') as HTMLButtonElement;
-    const rowsInput = this.tableDialog.querySelector('input[type="number"]:first-of-type') as HTMLInputElement;
-    const colsInput = this.tableDialog.querySelector('input[type="number"]:last-of-type') as HTMLInputElement;
+    const insertBtn = this.tableDialog?.querySelector('button:last-child') as HTMLButtonElement;
+    const rowsInput = this.tableDialog?.querySelector('input[type="number"]:first-of-type') as HTMLInputElement;
+    const colsInput = this.tableDialog?.querySelector('input[type="number"]:last-of-type') as HTMLInputElement;
+    
+    if (!insertBtn || !rowsInput || !colsInput) return;
     
     insertBtn.onclick = () => {
       const rows = parseInt(rowsInput?.value || '3');
@@ -703,6 +831,7 @@ export class ArmorEditor {
     } else {
       this.disableTrackChanges();
     }
+    this.updateButtonActiveState('trackChanges');
   }
 
   private enableTrackChanges() {
@@ -732,12 +861,14 @@ export class ArmorEditor {
       
       this.trackChangesPanel.innerHTML = changesHtml;
       
-      const closeBtn = this.trackChangesPanel.querySelector('#close-changes-btn') as HTMLButtonElement;
-      closeBtn.onclick = () => {
-        if (this.trackChangesPanel) {
-          this.trackChangesPanel.style.display = 'none';
-        }
-      };
+      const closeBtn = this.trackChangesPanel?.querySelector('#close-changes-btn') as HTMLButtonElement;
+      if (closeBtn) {
+        closeBtn.onclick = () => {
+          if (this.trackChangesPanel) {
+            this.trackChangesPanel.style.display = 'none';
+          }
+        };
+      }
       
       document.body.appendChild(this.trackChangesPanel);
     }
@@ -772,6 +903,7 @@ export class ArmorEditor {
       this.createCommentSidebar();
     }
     this.commentSidebar!.style.display = this.commentSidebar!.style.display === 'none' ? 'block' : 'none';
+    this.updateButtonActiveState('comments');
   }
 
   private createCommentSidebar() {
@@ -804,16 +936,18 @@ export class ArmorEditor {
     this.commentSidebar.innerHTML = commentsHtml;
     
     // Add event listeners
-    const addBtn = this.commentSidebar.querySelector('#add-comment-btn') as HTMLButtonElement;
-    const closeBtn = this.commentSidebar.querySelector('#close-comments-btn') as HTMLButtonElement;
-    const input = this.commentSidebar.querySelector('#comment-input') as HTMLTextAreaElement;
+    const addBtn = this.commentSidebar?.querySelector('#add-comment-btn') as HTMLButtonElement;
+    const closeBtn = this.commentSidebar?.querySelector('#close-comments-btn') as HTMLButtonElement;
+    const input = this.commentSidebar?.querySelector('#comment-input') as HTMLTextAreaElement;
     
-    addBtn.onclick = () => this.addComment(input.value);
-    closeBtn.onclick = () => {
-      if (this.commentSidebar) {
-        this.commentSidebar.style.display = 'none';
-      }
-    };
+    if (addBtn && closeBtn && input) {
+      addBtn.onclick = () => this.addComment(input.value);
+      closeBtn.onclick = () => {
+        if (this.commentSidebar) {
+          this.commentSidebar.style.display = 'none';
+        }
+      };
+    }
     
     document.body.appendChild(this.commentSidebar);
   }
@@ -863,6 +997,9 @@ export class ArmorEditor {
     } else {
       this.clearSpellCheckHighlights();
     }
+    
+    // Update button visual state
+    this.updateButtonActiveState('spellCheck');
   }
 
   private setupSpellCheckListener() {
@@ -1003,8 +1140,15 @@ export class ArmorEditor {
     `;
     
     const rect = errorSpan.getBoundingClientRect();
-    popup.style.left = rect.left + 'px';
-    popup.style.top = (rect.bottom + 5) + 'px';
+    const containerRect = this.container.getBoundingClientRect();
+    
+    // Position relative to container
+    popup.style.left = (rect.left - containerRect.left) + 'px';
+    popup.style.top = (rect.bottom - containerRect.top + 5) + 'px';
+    
+    // Ensure popup stays within container bounds
+    this.container.style.position = 'relative';
+    this.container.appendChild(popup);
     
     // Add suggestions
     if (suggestions.length > 0) {
@@ -1022,11 +1166,17 @@ export class ArmorEditor {
         item.onmouseout = () => item.style.background = 'white';
         
         item.onclick = () => {
-          errorSpan.textContent = suggestion;
-          errorSpan.style.background = 'transparent';
-          errorSpan.style.borderBottom = 'none';
-          errorSpan.classList.remove('spell-error');
+          // Replace only the text content, not HTML
+          const textNode = document.createTextNode(suggestion);
+          const parent = errorSpan.parentNode;
+          if (parent) {
+            parent.replaceChild(textNode, errorSpan);
+            parent.normalize(); // Merge adjacent text nodes
+          }
           popup.remove();
+          
+          // Trigger change event
+          this.options.onChange?.(this.getContent());
         };
         
         popup.appendChild(item);
@@ -1053,15 +1203,20 @@ export class ArmorEditor {
     ignoreItem.onmouseout = () => ignoreItem.style.background = 'white';
     
     ignoreItem.onclick = () => {
-      errorSpan.style.background = 'transparent';
-      errorSpan.style.borderBottom = 'none';
-      errorSpan.classList.remove('spell-error');
+      // Remove highlighting but keep as text node
+      const textNode = document.createTextNode(errorSpan.textContent || '');
+      const parent = errorSpan.parentNode;
+      if (parent) {
+        parent.replaceChild(textNode, errorSpan);
+        parent.normalize();
+      }
       popup.remove();
     };
     
     popup.appendChild(ignoreItem);
     
-    document.body.appendChild(popup);
+    // Remove the document.body.appendChild line since we're using container
+    // document.body.appendChild(popup);
     
     // Remove popup when clicking outside
     setTimeout(() => {
@@ -1223,8 +1378,10 @@ export class ArmorEditor {
       </div>
     `;
     
-    const embedBtn = mediaDialog.querySelector('button:last-child') as HTMLButtonElement;
-    const urlInput = mediaDialog.querySelector('input') as HTMLInputElement;
+    const embedBtn = mediaDialog?.querySelector('button:last-child') as HTMLButtonElement;
+    const urlInput = mediaDialog?.querySelector('input') as HTMLInputElement;
+    
+    if (!embedBtn || !urlInput) return;
     
     embedBtn.onclick = () => {
       const url = urlInput.value;
@@ -1505,6 +1662,7 @@ export class ArmorEditor {
     }
     this.wordCountPanel!.style.display = this.wordCountPanel!.style.display === 'none' ? 'block' : 'none';
     this.updateWordCount();
+    this.updateButtonActiveState('wordCount');
   }
 
   private createWordCountPanel() {
@@ -1823,6 +1981,7 @@ export class ArmorEditor {
     const isDark = this.options.theme === 'dark';
     this.editor = document.createElement('div');
     this.editor.contentEditable = 'true';
+    this.editor.className = 'armor-editor-content';
     this.editor.style.cssText = `
       padding: 12px;
       min-height: ${this.options.height || '300px'};
@@ -1856,6 +2015,20 @@ export class ArmorEditor {
       this.updateWordCount();
     });
 
+    // Update button states on selection change
+    this.editor.addEventListener('selectionchange', () => {
+      this.updateFormattingButtonStates();
+    });
+
+    // Also update on mouse up and key up for immediate feedback
+    this.editor.addEventListener('mouseup', () => {
+      setTimeout(() => this.updateFormattingButtonStates(), 10);
+    });
+
+    this.editor.addEventListener('keyup', () => {
+      setTimeout(() => this.updateFormattingButtonStates(), 10);
+    });
+
     this.editor.addEventListener('keydown', (e) => {
       if (e.ctrlKey || e.metaKey) {
         const shortcuts: Record<string, () => void> = {
@@ -1871,6 +2044,8 @@ export class ArmorEditor {
         if (shortcuts[e.key]) {
           e.preventDefault();
           shortcuts[e.key]();
+          // Update button states after formatting command
+          setTimeout(() => this.updateFormattingButtonStates(), 10);
         }
       }
       
@@ -1892,9 +2067,104 @@ export class ArmorEditor {
     });
   }
 
+  private updateFormattingButtonStates() {
+    if (!this.toolbar) return;
+
+    const formattingButtons = ['bold', 'italic', 'underline', 'strikethrough'];
+    
+    formattingButtons.forEach(buttonType => {
+      const button = this.toolbar.querySelector(`[data-button-type="${buttonType}"]`) as HTMLButtonElement;
+      if (!button) return;
+
+      const isActive = this.isFormatActive(buttonType);
+      this.setButtonActiveState(button, isActive, buttonType);
+    });
+  }
+
+  private isFormatActive(format: string): boolean {
+    try {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return false;
+
+      // Check if the current selection or cursor position has the format
+      const range = selection.getRangeAt(0);
+      let element: Node | null = range.commonAncestorContainer;
+
+      // If it's a text node, get its parent element
+      if (element.nodeType === Node.TEXT_NODE) {
+        element = element.parentElement;
+      }
+
+      // Check the element and its parents for formatting
+      while (element && element !== this.editor && element instanceof HTMLElement) {
+        const style = window.getComputedStyle(element);
+        
+        switch (format) {
+          case 'bold':
+            if (element.tagName === 'B' || element.tagName === 'STRONG' || 
+                style.fontWeight === 'bold' || parseInt(style.fontWeight) >= 700) {
+              return true;
+            }
+            break;
+          case 'italic':
+            if (element.tagName === 'I' || element.tagName === 'EM' || 
+                style.fontStyle === 'italic') {
+              return true;
+            }
+            break;
+          case 'underline':
+            if (element.tagName === 'U' || 
+                style.textDecoration.includes('underline')) {
+              return true;
+            }
+            break;
+          case 'strikethrough':
+            if (element.tagName === 'S' || element.tagName === 'STRIKE' || 
+                style.textDecoration.includes('line-through')) {
+              return true;
+            }
+            break;
+        }
+        
+        element = element.parentElement;
+      }
+
+      return false;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  private setButtonActiveState(button: HTMLButtonElement, isActive: boolean, buttonType: string) {
+    const isDark = this.options.theme === 'dark';
+    
+    if (isActive) {
+      button.classList.add('active');
+      button.style.background = '#007cba';
+      button.style.color = '#fff';
+      button.style.borderColor = '#007cba';
+    } else {
+      button.classList.remove('active');
+      button.style.background = isDark ? '#444' : '#fff';
+      button.style.color = isDark ? '#fff' : '#000';
+      button.style.borderColor = isDark ? '#555' : '#ccc';
+    }
+  }
+
   private execCommand(command: string, value?: string) {
     this.editor.focus();
-    document.execCommand(command, false, value);
+    
+    // Check if execCommand is available (not in Node.js/JSDOM)
+    if (typeof document.execCommand === 'function') {
+      document.execCommand(command, false, value);
+    } else {
+      // Fallback for testing environments
+      console.warn('execCommand not available, using fallback');
+      if (command === 'insertHTML' && value) {
+        // Simple fallback for insertHTML
+        this.editor.innerHTML += value;
+      }
+    }
   }
 
   public getContent(): string {
@@ -1984,10 +2254,13 @@ export class ArmorEditor {
 // Auto-initialization for data attributes (SSR-safe)
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   const initializeEditors = () => {
-    document.querySelectorAll('[data-armor-editor]').forEach(el => {
+    const elements = document.querySelectorAll('[data-armor-editor]');
+    if (!elements.length) return;
+    
+    elements.forEach(el => {
       try {
         const height = el.getAttribute('data-height') || '300px';
-        const theme = el.getAttribute('data-theme') as 'light' | 'dark' || 'light';
+        const theme = (el.getAttribute('data-theme') as 'light' | 'dark') || 'light';
         const placeholder = el.getAttribute('data-placeholder') || '';
         
         new ArmorEditor({ 
