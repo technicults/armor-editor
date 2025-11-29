@@ -136,6 +136,8 @@ Download the latest release from [GitHub](https://github.com/technicults/armor-e
 ```
 
 ### **React**
+
+#### Basic Usage
 ```jsx
 import { useEffect, useRef } from 'react';
 import { ArmorEditor } from 'armor-editor';
@@ -157,7 +159,87 @@ function MyEditor() {
 }
 ```
 
+#### Advanced React Component
+```jsx
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { ArmorEditor } from 'armor-editor';
+
+function BlogEditor({ postId, onSave }) {
+  const editorRef = useRef();
+  const [editor, setEditor] = useState(null);
+  const [content, setContent] = useState('');
+  const [title, setTitle] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    try {
+      await onSave({ title, content });
+    } finally {
+      setSaving(false);
+    }
+  }, [title, content, onSave]);
+
+  useEffect(() => {
+    const editorInstance = new ArmorEditor({
+      container: editorRef.current,
+      height: '500px',
+      toolbar: [
+        'bold', 'italic', 'underline', '|',
+        'fontSize', 'textColor', '|',
+        'alignLeft', 'alignCenter', 'alignRight', '|',
+        'orderedList', 'unorderedList', '|',
+        'link', 'image', 'blockquote', '|',
+        'spellCheck', 'wordCount'
+      ],
+      ai: {
+        enabled: true,
+        providers: {
+          openai: {
+            apiKey: process.env.REACT_APP_OPENAI_API_KEY,
+            models: ['gpt-4', 'gpt-3.5-turbo'],
+            defaultModel: 'gpt-4'
+          }
+        }
+      },
+      autoSave: {
+        interval: 30000,
+        callback: handleSave
+      },
+      onChange: (newContent) => setContent(newContent),
+      onReady: () => console.log('React editor ready!')
+    });
+
+    setEditor(editorInstance);
+    
+    return () => editorInstance.destroy();
+  }, [handleSave]);
+
+  return (
+    <div className="blog-editor">
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Blog post title..."
+        className="title-input"
+      />
+      <div ref={editorRef}></div>
+      <div className="editor-actions">
+        <button onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving...' : 'Save Draft'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default BlogEditor;
+```
+
 ### **Vue 3**
+
+#### Basic Usage
 ```vue
 <template>
   <div ref="editor"></div>
@@ -183,7 +265,172 @@ onBeforeUnmount(() => {
 </script>
 ```
 
+#### Advanced Vue Component
+```vue
+<template>
+  <div class="blog-editor">
+    <input 
+      v-model="title" 
+      placeholder="Blog title..." 
+      class="title-input"
+    />
+    <div ref="editorContainer"></div>
+    <div class="editor-actions">
+      <button @click="saveDraft" :disabled="saving">
+        {{ saving ? 'Saving...' : 'Save Draft' }}
+      </button>
+      <button @click="publish" :disabled="publishing">
+        {{ publishing ? 'Publishing...' : 'Publish' }}
+      </button>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ArmorEditor } from 'armor-editor';
+
+const props = defineProps({
+  postId: String
+});
+
+const emit = defineEmits(['save', 'publish']);
+
+const editorContainer = ref();
+const title = ref('');
+const content = ref('');
+const saving = ref(false);
+const publishing = ref(false);
+let editorInstance = null;
+
+onMounted(() => {
+  editorInstance = new ArmorEditor({
+    container: editorContainer.value,
+    height: '500px',
+    toolbar: [
+      'bold', 'italic', 'underline', '|',
+      'fontSize', 'textColor', '|',
+      'alignLeft', 'alignCenter', 'alignRight', '|',
+      'orderedList', 'unorderedList', '|',
+      'link', 'image', 'blockquote', '|',
+      'spellCheck', 'wordCount'
+    ],
+    ai: {
+      enabled: true,
+      providers: {
+        openai: {
+          apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+          models: ['gpt-4', 'gpt-3.5-turbo'],
+          defaultModel: 'gpt-4'
+        }
+      }
+    },
+    autoSave: {
+      interval: 30000,
+      callback: (content) => saveDraft()
+    },
+    onChange: (newContent) => {
+      content.value = newContent;
+    },
+    onReady: () => {
+      console.log('Vue editor ready!');
+    }
+  });
+});
+
+onBeforeUnmount(() => {
+  editorInstance?.destroy();
+});
+
+const saveDraft = async () => {
+  saving.value = true;
+  try {
+    const response = await fetch('/api/posts/draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: props.postId,
+        title: title.value,
+        content: content.value
+      })
+    });
+    
+    if (response.ok) {
+      emit('save', { title: title.value, content: content.value });
+    }
+  } catch (error) {
+    console.error('Save failed:', error);
+  } finally {
+    saving.value = false;
+  }
+};
+
+const publish = async () => {
+  publishing.value = true;
+  try {
+    const response = await fetch('/api/posts/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: props.postId,
+        title: title.value,
+        content: content.value
+      })
+    });
+    
+    if (response.ok) {
+      emit('publish', { title: title.value, content: content.value });
+    }
+  } catch (error) {
+    console.error('Publish failed:', error);
+  } finally {
+    publishing.value = false;
+  }
+};
+</script>
+
+<style scoped>
+.blog-editor {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.title-input {
+  width: 100%;
+  font-size: 24px;
+  font-weight: bold;
+  border: none;
+  outline: none;
+  padding: 10px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #eee;
+}
+
+.editor-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+button {
+  padding: 8px 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+</style>
+```
+
 ### **Next.js (App Router)**
+
+#### Basic Usage
 ```jsx
 'use client';
 
@@ -215,6 +462,230 @@ export default function Editor() {
 }
 ```
 
+#### Advanced Blog Editor Component
+```jsx
+'use client';
+
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { ArmorEditor } from 'armor-editor';
+import { useRouter } from 'next/navigation';
+
+export default function BlogEditor({ postId }) {
+  const editorRef = useRef();
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [editor, setEditor] = useState(null);
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    try {
+      const response = await fetch('/api/posts/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: postId,
+          title,
+          content
+        })
+      });
+      
+      if (response.ok) {
+        console.log('Draft saved successfully');
+      }
+    } catch (error) {
+      console.error('Save failed:', error);
+    } finally {
+      setSaving(false);
+    }
+  }, [postId, title, content]);
+
+  const handlePublish = useCallback(async () => {
+    setPublishing(true);
+    try {
+      const response = await fetch('/api/posts/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: postId,
+          title,
+          content
+        })
+      });
+      
+      if (response.ok) {
+        router.push('/blog');
+      }
+    } catch (error) {
+      console.error('Publish failed:', error);
+    } finally {
+      setPublishing(false);
+    }
+  }, [postId, title, content, router]);
+
+  useEffect(() => {
+    if (mounted && editorRef.current) {
+      const editorInstance = new ArmorEditor({
+        container: editorRef.current,
+        height: '600px',
+        toolbar: [
+          'bold', 'italic', 'underline', '|',
+          'fontSize', 'textColor', '|',
+          'alignLeft', 'alignCenter', 'alignRight', '|',
+          'orderedList', 'unorderedList', '|',
+          'link', 'image', 'blockquote', '|',
+          'spellCheck', 'wordCount'
+        ],
+        ai: {
+          enabled: true,
+          providers: {
+            openai: {
+              apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+              models: ['gpt-4', 'gpt-3.5-turbo'],
+              defaultModel: 'gpt-4'
+            }
+          }
+        },
+        autoSave: {
+          interval: 30000,
+          callback: handleSave
+        },
+        mobile: {
+          enabled: true,
+          collapsibleToolbar: true,
+          touchGestures: true
+        },
+        analytics: {
+          enabled: true,
+          trackEvents: ['typing', 'formatting', 'ai_usage']
+        },
+        onChange: (newContent) => setContent(newContent),
+        onReady: () => {
+          console.log('Next.js editor ready!');
+          editorInstance.setContent('<p>Start writing your blog post...</p>');
+        }
+      });
+
+      setEditor(editorInstance);
+      
+      return () => editorInstance.destroy();
+    }
+  }, [mounted, handleSave]);
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-lg">Loading editor...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="mb-6">
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Enter your blog title..."
+          className="w-full text-3xl font-bold border-none outline-none pb-4 border-b-2 border-gray-200 focus:border-blue-500"
+        />
+      </div>
+      
+      <div className="mb-6">
+        <div ref={editorRef} className="border border-gray-300 rounded-lg"></div>
+      </div>
+      
+      <div className="flex gap-4 justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+        >
+          {saving ? 'Saving...' : 'Save Draft'}
+        </button>
+        <button
+          onClick={handlePublish}
+          disabled={publishing || !title.trim() || !content.trim()}
+          className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+        >
+          {publishing ? 'Publishing...' : 'Publish'}
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+#### API Routes
+
+**app/api/posts/draft/route.js**
+```javascript
+import { NextResponse } from 'next/server';
+
+export async function POST(request) {
+  try {
+    const { id, title, content } = await request.json();
+    
+    // Save draft to database
+    const draft = await saveDraftToDatabase({
+      id,
+      title,
+      content,
+      updatedAt: new Date()
+    });
+    
+    return NextResponse.json({ success: true, draft });
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to save draft' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+**app/api/posts/publish/route.js**
+```javascript
+import { NextResponse } from 'next/server';
+
+export async function POST(request) {
+  try {
+    const { id, title, content } = await request.json();
+    
+    // Publish post to database
+    const post = await publishPostToDatabase({
+      id,
+      title,
+      content,
+      publishedAt: new Date(),
+      status: 'published'
+    });
+    
+    return NextResponse.json({ success: true, post });
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to publish post' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+#### Environment Variables (.env.local)
+```bash
+NEXT_PUBLIC_OPENAI_API_KEY=your-openai-api-key
+DATABASE_URL=your-database-url
+```
+```
+
 ### **Nuxt.js (Auto-import)**
 
 #### Step 1: Add Module
@@ -225,7 +696,7 @@ export default defineNuxtConfig({
 })
 ```
 
-#### Step 2: Use Component (No imports needed!)
+#### Step 2: Basic Usage
 ```vue
 <template>
   <ArmorEditor 
@@ -237,7 +708,7 @@ export default defineNuxtConfig({
 </template>
 
 <script setup>
-const content = ref('');
+const content = ref('<p>Start writing...</p>');
 
 const onReady = (editor) => {
   console.log('Editor ready!');
@@ -245,7 +716,143 @@ const onReady = (editor) => {
 </script>
 ```
 
+#### Step 3: Advanced Configuration
+```vue
+<template>
+  <div class="blog-editor">
+    <input v-model="title" placeholder="Blog title..." class="title-input" />
+    <ArmorEditor 
+      v-model="content"
+      height="600px"
+      :toolbar="toolbarConfig"
+      :ai="aiConfig"
+      :auto-save="autoSaveConfig"
+      :collaboration="collaborationConfig"
+      :mobile="{ enabled: true, collapsibleToolbar: true }"
+      :analytics="{ enabled: true, trackEvents: ['typing', 'ai_usage'] }"
+      @ready="onReady"
+      @change="onChange"
+    />
+    <div class="editor-actions">
+      <button @click="saveDraft" :disabled="saving">Save Draft</button>
+      <button @click="publish" :disabled="publishing">Publish</button>
+    </div>
+  </div>
+</template>
+
+<script setup>
+const title = ref('')
+const content = ref('')
+const saving = ref(false)
+const publishing = ref(false)
+
+const toolbarConfig = [
+  'bold', 'italic', 'underline', '|',
+  'fontSize', 'textColor', '|',
+  'alignLeft', 'alignCenter', 'alignRight', '|',
+  'orderedList', 'unorderedList', '|',
+  'link', 'image', 'blockquote', '|',
+  'spellCheck', 'wordCount'
+]
+
+const aiConfig = {
+  enabled: true,
+  providers: {
+    openai: {
+      apiKey: process.env.OPENAI_API_KEY,
+      models: ['gpt-4', 'gpt-3.5-turbo'],
+      defaultModel: 'gpt-4'
+    }
+  }
+}
+
+const autoSaveConfig = {
+  interval: 30000,
+  callback: (content) => saveDraft()
+}
+
+const collaborationConfig = {
+  channelId: 'doc-123',
+  userId: 'user-456',
+  userName: 'John Doe'
+}
+
+const saveDraft = async () => {
+  saving.value = true
+  try {
+    await $fetch('/api/posts/draft', {
+      method: 'POST',
+      body: { title: title.value, content: content.value }
+    })
+  } finally {
+    saving.value = false
+  }
+}
+
+const publish = async () => {
+  publishing.value = true
+  try {
+    await $fetch('/api/posts/publish', {
+      method: 'POST',
+      body: { title: title.value, content: content.value }
+    })
+    await navigateTo('/blog')
+  } finally {
+    publishing.value = false
+  }
+}
+
+const onReady = (editor) => {
+  console.log('Nuxt editor ready!')
+}
+
+const onChange = (newContent) => {
+  console.log('Content changed:', newContent.length, 'characters')
+}
+</script>
+
+<style scoped>
+.blog-editor {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.title-input {
+  width: 100%;
+  font-size: 24px;
+  font-weight: bold;
+  border: none;
+  outline: none;
+  padding: 10px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #eee;
+}
+
+.editor-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+button {
+  padding: 8px 16px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+</style>
+```
+
 ### **Angular**
+
+#### Basic Usage
 ```typescript
 import { Component, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { ArmorEditor } from 'armor-editor';
@@ -267,6 +874,155 @@ export class EditorComponent implements AfterViewInit {
 
   ngOnDestroy() {
     this.editor?.destroy();
+  }
+}
+```
+
+#### Advanced Angular Component
+```typescript
+import { Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { ArmorEditor } from 'armor-editor';
+
+@Component({
+  selector: 'app-blog-editor',
+  template: `
+    <div class="blog-editor">
+      <input 
+        [(ngModel)]="title" 
+        placeholder="Blog title..." 
+        class="title-input"
+      />
+      <div #editorContainer></div>
+      <div class="editor-actions">
+        <button (click)="saveDraft()" [disabled]="saving">
+          {{ saving ? 'Saving...' : 'Save Draft' }}
+        </button>
+        <button (click)="publish()" [disabled]="publishing">
+          {{ publishing ? 'Publishing...' : 'Publish' }}
+        </button>
+      </div>
+    </div>
+  `,
+  styles: [`
+    .blog-editor {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .title-input {
+      width: 100%;
+      font-size: 24px;
+      font-weight: bold;
+      border: none;
+      outline: none;
+      padding: 10px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #eee;
+    }
+    .editor-actions {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      padding: 8px 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  `]
+})
+export class BlogEditorComponent implements AfterViewInit, OnDestroy {
+  @ViewChild('editorContainer') editorContainer!: ElementRef;
+  @Input() postId!: string;
+  @Output() save = new EventEmitter<{title: string, content: string}>();
+  @Output() publish = new EventEmitter<{title: string, content: string}>();
+
+  private editor!: ArmorEditor;
+  title = '';
+  content = '';
+  saving = false;
+  publishing = false;
+
+  constructor(private http: HttpClient) {}
+
+  ngAfterViewInit() {
+    this.editor = new ArmorEditor({
+      container: this.editorContainer.nativeElement,
+      height: '500px',
+      toolbar: [
+        'bold', 'italic', 'underline', '|',
+        'fontSize', 'textColor', '|',
+        'alignLeft', 'alignCenter', 'alignRight', '|',
+        'orderedList', 'unorderedList', '|',
+        'link', 'image', 'blockquote', '|',
+        'spellCheck', 'wordCount'
+      ],
+      ai: {
+        enabled: true,
+        providers: {
+          openai: {
+            apiKey: environment.openaiApiKey,
+            models: ['gpt-4', 'gpt-3.5-turbo'],
+            defaultModel: 'gpt-4'
+          }
+        }
+      },
+      autoSave: {
+        interval: 30000,
+        callback: (content) => this.saveDraft()
+      },
+      onChange: (newContent) => {
+        this.content = newContent;
+      },
+      onReady: () => {
+        console.log('Angular editor ready!');
+      }
+    });
+  }
+
+  ngOnDestroy() {
+    this.editor?.destroy();
+  }
+
+  async saveDraft() {
+    this.saving = true;
+    try {
+      await this.http.post('/api/posts/draft', {
+        id: this.postId,
+        title: this.title,
+        content: this.content
+      }).toPromise();
+      
+      this.save.emit({ title: this.title, content: this.content });
+    } catch (error) {
+      console.error('Save failed:', error);
+    } finally {
+      this.saving = false;
+    }
+  }
+
+  async publish() {
+    this.publishing = true;
+    try {
+      await this.http.post('/api/posts/publish', {
+        id: this.postId,
+        title: this.title,
+        content: this.content
+      }).toPromise();
+      
+      this.publish.emit({ title: this.title, content: this.content });
+    } catch (error) {
+      console.error('Publish failed:', error);
+    } finally {
+      this.publishing = false;
+    }
   }
 }
 ```
