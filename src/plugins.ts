@@ -89,7 +89,7 @@ export const autoSavePlugin: Plugin = {
   name: 'autoSave',
   version: '1.0.0',
   init: (editor) => {
-    let timeout: number;
+    let timeout: any;
     
     const autoSave = () => {
       clearTimeout(timeout);

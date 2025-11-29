@@ -14,10 +14,15 @@ import { PermissionsSystem } from './permissions-system';
 import { VersionSystem } from './version-system';
 import { AnalyticsSystem } from './analytics-system';
 import { WorkflowSystem } from './workflow-system';
+import { RealtimeCollaboration } from './realtime-collaboration';
+import { WasmOptimizations } from './wasm-optimizations';
+import { CompleteExportImport } from './export-import-complete';
+import { CompleteLocalAI } from './local-ai-complete';
+import { CompleteMediaEditor } from './media-editor-complete';
+import { EncryptionSystem } from './encryption-system';
 import { VoiceCommentsSystem } from './voice-comments';
 import { VideoIntegration } from './video-integration';
 import { MediaEditor } from './media-editor';
-import { EncryptionSystem } from './encryption-system';
 import { SSOIntegration } from './sso-integration';
 import { ComplianceSystem } from './compliance-system';
 import { ArmorEditorElement, ArmorEditorMicrofrontend } from './web-components';
@@ -160,10 +165,15 @@ export class ArmorEditor {
   private versionSystem: VersionSystem | null = null;
   private analyticsSystem: AnalyticsSystem | null = null;
   private workflowSystem: WorkflowSystem | null = null;
+  private realtimeCollaboration: RealtimeCollaboration | null = null;
+  private wasmOptimizations: WasmOptimizations | null = null;
+  private completeExportImport: CompleteExportImport | null = null;
+  private completeLocalAI: CompleteLocalAI | null = null;
+  private completeMediaEditor: CompleteMediaEditor | null = null;
+  private encryptionSystem: EncryptionSystem | null = null;
   private voiceComments: VoiceCommentsSystem | null = null;
   private videoIntegration: VideoIntegration | null = null;
   private mediaEditor: MediaEditor | null = null;
-  private encryptionSystem: EncryptionSystem | null = null;
   private ssoIntegration: SSOIntegration | null = null;
   private complianceSystem: ComplianceSystem | null = null;
   private localAI: LocalAISystem | null = null;
@@ -355,7 +365,7 @@ export class ArmorEditor {
     
     // Initialize AI enhancements
     if (this.options.ai?.enabled) {
-      this.aiEnhancements = new AIEnhancements(this);
+      this.aiEnhancements = new AIEnhancements(this, this.options.ai as any);
     }
     
     // Initialize all enterprise systems
@@ -383,7 +393,12 @@ export class ArmorEditor {
     }
     
     if (this.options.sso) {
-      this.ssoIntegration = new SSOIntegration(this.options.sso);
+      this.ssoIntegration = new SSOIntegration({
+        provider: this.options.sso.provider || 'saml',
+        entityId: this.options.sso.entityId || '',
+        ssoUrl: this.options.sso.ssoUrl || '',
+        certificate: this.options.sso.certificate || ''
+      });
     }
     
     if (this.options.compliance?.gdpr?.enabled || this.options.compliance?.hipaa?.enabled) {
@@ -403,8 +418,21 @@ export class ArmorEditor {
       });
     }
     
+    // Initialize complete systems
+    this.wasmOptimizations = new WasmOptimizations();
+    this.completeExportImport = new CompleteExportImport(this);
+    this.completeMediaEditor = new CompleteMediaEditor(this);
+    
+    if (this.options.collaboration) {
+      this.realtimeCollaboration = new RealtimeCollaboration(this, {
+        channelId: this.options.collaboration.channelId,
+        userId: this.options.collaboration.userId,
+        userName: this.options.collaboration.userName
+      });
+    }
+    
     if (this.options.localAI?.enabled) {
-      this.localAI = new LocalAISystem();
+      this.completeLocalAI = new CompleteLocalAI();
     }
     
     // Initialize undo system
@@ -2708,38 +2736,33 @@ export class ArmorEditor {
   }
 
   private exportToPdf() {
-    try {
-      const content = this.getContent();
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Export PDF</title>
-              <style>
-                body { font-family: Arial, sans-serif; line-height: 1.6; margin: 20px; }
-                table { border-collapse: collapse; width: 100%; }
-                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                th { background-color: #f2f2f2; }
-                img { max-width: 100%; height: auto; }
-                @media print { body { margin: 0; } }
-              </style>
-            </head>
-            <body>${content}</body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => {
+    if (this.completeExportImport) {
+      this.completeExportImport.exportToPDF();
+    } else {
+      // Fallback to original method
+      try {
+        const content = this.getContent();
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>Export PDF</title>
+                <style>
+                  body { font-family: Arial, sans-serif; line-height: 1.6; margin: 20px; }
+                  @media print { body { margin: 0; } }
+                </style>
+              </head>
+              <body>${content}</body>
+            </html>
+          `);
+          printWindow.document.close();
           printWindow.print();
-        }, 250);
-      } else {
-        alert('Please allow popups to export PDF');
+        }
+      } catch (error) {
+        console.error('PDF export failed:', error);
       }
-    } catch (error) {
-      console.error('PDF export failed:', error);
-      alert('PDF export failed. Please try again.');
     }
   }
 

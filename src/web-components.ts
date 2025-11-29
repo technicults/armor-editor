@@ -159,7 +159,7 @@ export class ArmorEditorElement extends HTMLElement {
   }
 
   private executeCommand(command: string) {
-    const content = this.shadow.querySelector('.armor-editor-content');
+    const content = this.shadow.querySelector('.armor-editor-content') as HTMLElement;
     content?.focus();
 
     switch (command) {
@@ -291,7 +291,7 @@ export class ArmorEditorElement extends HTMLElement {
   }
 
   insertHTML(html: string) {
-    const content = this.shadow.querySelector('.armor-editor-content');
+    const content = this.shadow.querySelector('.armor-editor-content') as HTMLElement;
     content?.focus();
     document.execCommand('insertHTML', false, html);
   }

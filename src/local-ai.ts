@@ -272,7 +272,7 @@ export class LocalAISystem {
       
       return { tokensPerSecond, latency: Math.round(latency) };
     } catch (error) {
-      return { tokensPerSecond: 0, latency: 0, error: error.message };
+      return { tokensPerSecond: 0, latency: 0, error: (error as Error).message };
     }
   }
 
