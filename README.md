@@ -42,6 +42,7 @@ const editor = new ArmorEditor({
 - [Collaboration Setup](#collaboration-setup)
 - [Spell Check Setup](#spell-check-setup)
 - [Use Cases & Examples](#use-cases--examples)
+- [AI Models & Providers](#ai-models--providers)
 - [Read-Only Mode](#read-only-mode)
 - [API Reference](#api-reference)
 - [Customization](#customization)
@@ -320,17 +321,16 @@ const editor = new ArmorEditor({
     chunkSize: 1000
   },
   
-  // AI Writing Assistant
-  ai: {
-    enabled: true,
-    apiKey: 'your-openai-key',
-    features: ['grammar', 'tone', 'suggestions']
-  },
-  
   // Analytics & Tracking
   analytics: {
     enabled: true,
     trackEvents: ['typing', 'formatting', 'collaboration']
+  },
+  
+  // See AI Models & Providers section for AI configuration
+  ai: {
+    enabled: true,
+    // ... see dedicated AI section above
   }
 });
 ```
@@ -559,6 +559,176 @@ const formEditor = new ArmorEditor({
   }
 });
 ```
+
+---
+
+## AI Models & Providers
+
+### Supported AI Providers
+
+ArmorEditor integrates with 5 major AI providers, offering 15+ models for different use cases:
+
+#### 1. OpenAI
+| Model | Description | Best For | Context | Cost |
+|-------|-------------|----------|---------|------|
+| `gpt-4` | Most capable model | Complex writing, analysis | 8K tokens | $$$ |
+| `gpt-4-turbo` | Faster GPT-4 variant | Real-time assistance | 128K tokens | $$$ |
+| `gpt-3.5-turbo` | Fast and efficient | General writing tasks | 4K tokens | $ |
+
+#### 2. Anthropic Claude
+| Model | Description | Best For | Context | Cost |
+|-------|-------------|----------|---------|------|
+| `claude-3-opus` | Most powerful Claude | Professional content | 200K tokens | $$$ |
+| `claude-3-sonnet` | Balanced performance | Business writing | 200K tokens | $$ |
+| `claude-3-haiku` | Fastest Claude | Quick edits | 200K tokens | $ |
+
+#### 3. Google Gemini
+| Model | Description | Best For | Context | Cost |
+|-------|-------------|----------|---------|------|
+| `gemini-pro` | Advanced reasoning | Technical writing | 32K tokens | $$ |
+| `gemini-pro-vision` | Multimodal support | Content with images | 16K tokens | $$ |
+
+#### 4. Cohere
+| Model | Description | Best For | Context | Cost |
+|-------|-------------|----------|---------|------|
+| `command` | Production model | Enterprise content | 4K tokens | $$ |
+| `command-light` | Faster variant | Quick improvements | 4K tokens | $ |
+| `command-nightly` | Latest features | Experimental tasks | 4K tokens | $$ |
+
+#### 5. Hugging Face
+| Model | Description | Best For | Context | Cost |
+|-------|-------------|----------|---------|------|
+| `microsoft/DialoGPT-large` | Conversational AI | Dialog writing | 1K tokens | Free |
+| `facebook/blenderbot-400M-distill` | Compact model | Basic assistance | 512 tokens | Free |
+| `google/flan-t5-large` | Instruction following | Task-specific writing | 512 tokens | Free |
+
+### Configuration Examples
+
+#### Single Provider Setup
+```javascript
+const editor = new ArmorEditor({
+  container: '#editor',
+  ai: {
+    enabled: true,
+    provider: 'openai',
+    apiKey: 'your-openai-api-key',
+    model: 'gpt-4'
+  }
+});
+```
+
+#### Multi-Provider Setup
+```javascript
+const editor = new ArmorEditor({
+  container: '#editor',
+  ai: {
+    enabled: true,
+    providers: {
+      openai: {
+        apiKey: 'sk-...',
+        models: ['gpt-4', 'gpt-3.5-turbo'],
+        defaultModel: 'gpt-4'
+      },
+      anthropic: {
+        apiKey: 'sk-ant-...',
+        models: ['claude-3-opus', 'claude-3-sonnet'],
+        defaultModel: 'claude-3-sonnet'
+      },
+      google: {
+        apiKey: 'AIza...',
+        models: ['gemini-pro'],
+        defaultModel: 'gemini-pro'
+      }
+    }
+  }
+});
+```
+
+### AI Actions Available
+
+| Action | Description | Best Models | Use Case |
+|--------|-------------|-------------|----------|
+| **Improve Writing** | Enhance clarity and quality | GPT-4, Claude-3-opus | Blog posts, articles |
+| **Fix Grammar** | Correct spelling and grammar | GPT-3.5-turbo, Claude-3-haiku | Quick proofreading |
+| **Change Tone** | Adjust professional/casual tone | Claude-3-sonnet, GPT-4 | Business communication |
+| **Summarize** | Condense long content | Gemini-pro, Command | Executive summaries |
+| **Expand Content** | Add details and examples | GPT-4, Claude-3-opus | Educational content |
+| **Translate** | Convert to different languages | Gemini-pro, GPT-4 | Multilingual content |
+| **Simplify** | Make text easier to understand | Claude-3-haiku, Command-light | User documentation |
+
+### Model Selection Guide
+
+#### For Different Content Types:
+
+**Blog Writing**
+- Primary: `gpt-4` (creativity + quality)
+- Fallback: `claude-3-sonnet` (balanced performance)
+
+**Business Documents**
+- Primary: `claude-3-opus` (professional tone)
+- Fallback: `command` (enterprise focus)
+
+**Technical Documentation**
+- Primary: `gemini-pro` (technical reasoning)
+- Fallback: `gpt-4-turbo` (fast processing)
+
+**Quick Edits**
+- Primary: `gpt-3.5-turbo` (speed + cost)
+- Fallback: `claude-3-haiku` (efficient)
+
+**Multilingual Content**
+- Primary: `gemini-pro` (language support)
+- Fallback: `gpt-4` (translation quality)
+
+### API Key Setup
+
+#### Getting API Keys:
+
+1. **OpenAI**: [platform.openai.com](https://platform.openai.com/api-keys)
+2. **Anthropic**: [console.anthropic.com](https://console.anthropic.com/)
+3. **Google**: [makersuite.google.com](https://makersuite.google.com/app/apikey)
+4. **Cohere**: [dashboard.cohere.ai](https://dashboard.cohere.ai/api-keys)
+5. **Hugging Face**: [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+
+#### Environment Variables:
+```bash
+# .env file
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_API_KEY=AIza...
+COHERE_API_KEY=...
+HUGGINGFACE_API_KEY=hf_...
+```
+
+### Performance Comparison
+
+| Provider | Speed | Quality | Cost Efficiency | Context Length |
+|----------|-------|---------|-----------------|----------------|
+| OpenAI | 4/5 | 5/5 | 3/5 | 3/5 |
+| Anthropic | 4/5 | 5/5 | 3/5 | 5/5 |
+| Google | 5/5 | 4/5 | 4/5 | 4/5 |
+| Cohere | 4/5 | 3/5 | 4/5 | 3/5 |
+| Hugging Face | 3/5 | 2/5 | 5/5 | 2/5 |
+
+### Best Practices
+
+#### Security:
+- Store API keys securely (environment variables)
+- Use different keys for development/production
+- Monitor API usage and costs
+- Implement rate limiting
+
+#### Cost Optimization:
+- Use cheaper models for simple tasks
+- Implement caching for repeated requests
+- Set usage limits and monitoring
+- Choose appropriate context lengths
+
+#### Performance:
+- Select fastest models for real-time use
+- Implement fallback providers
+- Cache common responses
+- Use streaming for long responses
 
 ---
 

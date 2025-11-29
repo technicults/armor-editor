@@ -57,8 +57,37 @@ export interface EditorOptions {
   };
   ai?: {
     enabled?: boolean;
+    provider?: 'openai' | 'anthropic' | 'google' | 'cohere' | 'huggingface';
     apiKey?: string;
+    model?: string;
     features?: string[];
+    providers?: {
+      openai?: {
+        apiKey: string;
+        models: string[];
+        defaultModel?: string;
+      };
+      anthropic?: {
+        apiKey: string;
+        models: string[];
+        defaultModel?: string;
+      };
+      google?: {
+        apiKey: string;
+        models: string[];
+        defaultModel?: string;
+      };
+      cohere?: {
+        apiKey: string;
+        models: string[];
+        defaultModel?: string;
+      };
+      huggingface?: {
+        apiKey: string;
+        models: string[];
+        defaultModel?: string;
+      };
+    };
   };
   analytics?: {
     enabled?: boolean;
@@ -1702,12 +1731,16 @@ export class ArmorEditor {
   }
 
   private async initializeAI() {
-    if (!this.options.ai?.enabled || !this.options.ai?.apiKey) return;
+    if (!this.options.ai?.enabled) return;
+    
+    // Check if any provider is configured
+    const hasProvider = this.options.ai?.apiKey || this.options.ai?.providers;
+    if (!hasProvider) return;
     
     // Add AI assistant button to toolbar
     if (this.toolbar) {
       const aiBtn = document.createElement('button');
-      aiBtn.innerHTML = '🤖';
+      aiBtn.innerHTML = 'AI';
       aiBtn.title = 'AI Writing Assistant';
       aiBtn.style.cssText = `
         padding: 8px;
@@ -1739,16 +1772,36 @@ export class ArmorEditor {
       padding: 20px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
       z-index: 1001;
-      min-width: 400px;
-      max-width: 600px;
+      min-width: 500px;
+      max-width: 700px;
     `;
+    
+    // Get available providers
+    const providers = this.getAvailableProviders();
+    const providerOptions = providers.map(p => 
+      `<option value="${p.id}">${p.name} (${p.models.join(', ')})</option>`
+    ).join('');
     
     aiDialog.innerHTML = `
       <h3>AI Writing Assistant</h3>
       <div style="margin: 15px 0;">
         <label>Selected text:</label>
-        <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 5px 0;">
+        <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 5px 0; max-height: 100px; overflow-y: auto;">
           ${selectedText || 'No text selected'}
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
+        <div>
+          <label>AI Provider:</label>
+          <select id="ai-provider" style="width: 100%; padding: 8px; margin: 5px 0;">
+            ${providerOptions}
+          </select>
+        </div>
+        <div>
+          <label>Model:</label>
+          <select id="ai-model" style="width: 100%; padding: 8px; margin: 5px 0;">
+            <option value="">Select model...</option>
+          </select>
         </div>
       </div>
       <div style="margin: 15px 0;">
@@ -1759,7 +1812,14 @@ export class ArmorEditor {
           <option value="tone">Change tone</option>
           <option value="summarize">Summarize</option>
           <option value="expand">Expand content</option>
+          <option value="translate">Translate</option>
+          <option value="simplify">Simplify language</option>
+          <option value="custom">Custom prompt</option>
         </select>
+      </div>
+      <div id="custom-prompt-section" style="margin: 15px 0; display: none;">
+        <label>Custom Prompt:</label>
+        <textarea id="custom-prompt" placeholder="Enter your custom prompt here..." style="width: 100%; height: 80px; padding: 8px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; resize: vertical;"></textarea>
       </div>
       <div style="text-align: right; margin-top: 15px;">
         <button id="ai-cancel" style="margin-right: 8px; padding: 8px 16px;">Cancel</button>
@@ -1769,59 +1829,306 @@ export class ArmorEditor {
     
     document.body.appendChild(aiDialog);
     
+    const providerSelect = aiDialog.querySelector('#ai-provider') as HTMLSelectElement;
+    const modelSelect = aiDialog.querySelector('#ai-model') as HTMLSelectElement;
+    const actionSelect = aiDialog.querySelector('#ai-action') as HTMLSelectElement;
+    const customPromptSection = aiDialog.querySelector('#custom-prompt-section') as HTMLDivElement;
+    const customPromptTextarea = aiDialog.querySelector('#custom-prompt') as HTMLTextAreaElement;
     const cancelBtn = aiDialog.querySelector('#ai-cancel') as HTMLButtonElement;
     const processBtn = aiDialog.querySelector('#ai-process') as HTMLButtonElement;
-    const actionSelect = aiDialog.querySelector('#ai-action') as HTMLSelectElement;
+    
+    // Show/hide custom prompt section
+    actionSelect.onchange = () => {
+      if (actionSelect.value === 'custom') {
+        customPromptSection.style.display = 'block';
+        customPromptTextarea.focus();
+      } else {
+        customPromptSection.style.display = 'none';
+      }
+    };
+    
+    // Update models when provider changes
+    providerSelect.onchange = () => {
+      const selectedProvider = providers.find(p => p.id === providerSelect.value);
+      modelSelect.innerHTML = selectedProvider?.models.map(model => 
+        `<option value="${model}">${model}</option>`
+      ).join('') || '';
+      
+      // Select default model if available
+      if (selectedProvider?.defaultModel) {
+        modelSelect.value = selectedProvider.defaultModel;
+      }
+    };
+    
+    // Initialize models for first provider
+    if (providers.length > 0) {
+      providerSelect.dispatchEvent(new Event('change'));
+    }
     
     cancelBtn.onclick = () => aiDialog.remove();
     processBtn.onclick = () => {
-      this.processAIRequest(selectedText, actionSelect.value);
+      const provider = providerSelect.value;
+      const model = modelSelect.value;
+      const action = actionSelect.value;
+      
+      if (!provider || !model) {
+        alert('Please select both provider and model');
+        return;
+      }
+      
+      let customPrompt = '';
+      if (action === 'custom') {
+        customPrompt = customPromptTextarea.value.trim();
+        if (!customPrompt) {
+          alert('Please enter a custom prompt');
+          return;
+        }
+      }
+      
+      this.processAIRequest(selectedText, action, provider, model, customPrompt);
       aiDialog.remove();
     };
   }
 
-  private async processAIRequest(text: string, action: string) {
+  private getAvailableProviders() {
+    const providers: Array<{id: string, name: string, models: string[], defaultModel?: string}> = [];
+    
+    // Legacy single provider support
+    if (this.options.ai?.apiKey && this.options.ai?.provider) {
+      const providerConfig = this.getProviderConfig(this.options.ai.provider);
+      providers.push({
+        id: this.options.ai.provider,
+        name: providerConfig.name,
+        models: this.options.ai.model ? [this.options.ai.model] : providerConfig.defaultModels,
+        defaultModel: this.options.ai.model || providerConfig.defaultModels[0]
+      });
+    }
+    
+    // Multi-provider support
+    if (this.options.ai?.providers) {
+      Object.entries(this.options.ai.providers).forEach(([providerId, config]) => {
+        if (config?.apiKey) {
+          const providerConfig = this.getProviderConfig(providerId as any);
+          providers.push({
+            id: providerId,
+            name: providerConfig.name,
+            models: config.models || providerConfig.defaultModels,
+            defaultModel: config.defaultModel || providerConfig.defaultModels[0]
+          });
+        }
+      });
+    }
+    
+    return providers;
+  }
+
+  private getProviderConfig(providerId: string) {
+    const configs = {
+      openai: {
+        name: 'OpenAI',
+        defaultModels: ['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo'],
+        endpoint: 'https://api.openai.com/v1/chat/completions'
+      },
+      anthropic: {
+        name: 'Anthropic Claude',
+        defaultModels: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'],
+        endpoint: 'https://api.anthropic.com/v1/messages'
+      },
+      google: {
+        name: 'Google Gemini',
+        defaultModels: ['gemini-pro', 'gemini-pro-vision'],
+        endpoint: 'https://generativelanguage.googleapis.com/v1/models'
+      },
+      cohere: {
+        name: 'Cohere',
+        defaultModels: ['command', 'command-light', 'command-nightly'],
+        endpoint: 'https://api.cohere.ai/v1/generate'
+      },
+      huggingface: {
+        name: 'Hugging Face',
+        defaultModels: ['microsoft/DialoGPT-large', 'facebook/blenderbot-400M-distill'],
+        endpoint: 'https://api-inference.huggingface.co/models'
+      }
+    };
+    
+    return configs[providerId as keyof typeof configs] || configs.openai;
+  }
+
+  private async processAIRequest(text: string, action: string, provider: string, model: string, customPrompt?: string) {
     if (!text) {
       alert('Please select some text first');
       return;
     }
     
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.options.ai?.apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: [{
-            role: 'user',
-            content: `${this.getAIPrompt(action)}: "${text}"`
-          }],
-          max_tokens: 500
-        })
-      });
+      // Show loading indicator
+      const loadingDiv = document.createElement('div');
+      loadingDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        z-index: 1002;
+      `;
+      loadingDiv.innerHTML = 'Processing with AI...';
+      document.body.appendChild(loadingDiv);
       
-      const data = await response.json();
-      const improvedText = data.choices[0]?.message?.content;
+      const result = await this.callAIProvider(provider, model, text, action, customPrompt);
       
-      if (improvedText) {
-        this.replaceSelectedText(improvedText);
+      loadingDiv.remove();
+      
+      if (result) {
+        this.replaceSelectedText(result);
+        this.trackEvent('ai_request_success', { provider, model, action });
+      } else {
+        alert('AI processing failed. Please try again.');
       }
     } catch (error) {
       console.error('AI request failed:', error);
-      alert('AI processing failed. Please try again.');
+      alert('AI processing failed: ' + (error as Error).message);
+      this.trackEvent('ai_request_failed', { provider, model, action, error: (error as Error).message });
     }
   }
 
-  private getAIPrompt(action: string): string {
+  private async callAIProvider(provider: string, model: string, text: string, action: string, customPrompt?: string): Promise<string | null> {
+    let prompt: string;
+    
+    if (customPrompt) {
+      // For custom prompts, append the selected text if it exists
+      prompt = text ? `${customPrompt}\n\nText: "${text}"` : customPrompt;
+    } else {
+      prompt = this.getAIPrompt(action, text);
+    }
+    const config = this.getProviderConfig(provider);
+    
+    // Get API key
+    let apiKey = '';
+    if (this.options.ai?.providers?.[provider as keyof typeof this.options.ai.providers]) {
+      apiKey = this.options.ai.providers[provider as keyof typeof this.options.ai.providers]?.apiKey || '';
+    } else if (this.options.ai?.provider === provider) {
+      apiKey = this.options.ai.apiKey || '';
+    }
+    
+    if (!apiKey) {
+      throw new Error(`No API key configured for ${provider}`);
+    }
+    
+    switch (provider) {
+      case 'openai':
+        return this.callOpenAI(apiKey, model, prompt);
+      case 'anthropic':
+        return this.callAnthropic(apiKey, model, prompt);
+      case 'google':
+        return this.callGoogle(apiKey, model, prompt);
+      case 'cohere':
+        return this.callCohere(apiKey, model, prompt);
+      case 'huggingface':
+        return this.callHuggingFace(apiKey, model, prompt);
+      default:
+        throw new Error(`Unsupported provider: ${provider}`);
+    }
+  }
+
+  private async callOpenAI(apiKey: string, model: string, prompt: string): Promise<string | null> {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 500
+      })
+    });
+    
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || null;
+  }
+
+  private async callAnthropic(apiKey: string, model: string, prompt: string): Promise<string | null> {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 500,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    
+    const data = await response.json();
+    return data.content?.[0]?.text || null;
+  }
+
+  private async callGoogle(apiKey: string, model: string, prompt: string): Promise<string | null> {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+      })
+    });
+    
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  }
+
+  private async callCohere(apiKey: string, model: string, prompt: string): Promise<string | null> {
+    const response = await fetch('https://api.cohere.ai/v1/generate', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        prompt,
+        max_tokens: 500
+      })
+    });
+    
+    const data = await response.json();
+    return data.generations?.[0]?.text || null;
+  }
+
+  private async callHuggingFace(apiKey: string, model: string, prompt: string): Promise<string | null> {
+    const response = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: { max_length: 500 }
+      })
+    });
+    
+    const data = await response.json();
+    return data[0]?.generated_text || null;
+  }
+
+  private getAIPrompt(action: string, text: string): string {
     const prompts = {
-      improve: 'Improve the writing quality of this text',
-      grammar: 'Fix grammar and spelling errors in this text',
-      tone: 'Make this text more professional and clear',
-      summarize: 'Summarize this text concisely',
-      expand: 'Expand this text with more details and examples'
+      improve: `Improve the writing quality and clarity of this text: "${text}"`,
+      grammar: `Fix grammar and spelling errors in this text: "${text}"`,
+      tone: `Make this text more professional and clear: "${text}"`,
+      summarize: `Summarize this text concisely: "${text}"`,
+      expand: `Expand this text with more details and examples: "${text}"`,
+      translate: `Translate this text to English: "${text}"`,
+      simplify: `Simplify this text for easier understanding: "${text}"`
     };
     return prompts[action as keyof typeof prompts] || prompts.improve;
   }
