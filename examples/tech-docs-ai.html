@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technical Documentation AI - ArmorEditor</title>
+    <style>
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #0d1117;
+            color: #c9d1d9;
+        }
+        .tech-header {
+            background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .docs-workspace {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 20px;
+            min-height: 700px;
+        }
+        .sidebar {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .main-docs {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .doc-type-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.3s ease;
+        }
+        .doc-type-btn:hover {
+            background: #30363d;
+            border-color: #238636;
+        }
+        .doc-type-btn.active {
+            background: #238636;
+            border-color: #2ea043;
+        }
+        .ai-panel {
+            background: #1c2128;
+            border: 1px solid #30363d;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .code-snippet {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            margin: 10px 0;
+            font-family: 'Monaco', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 4px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: #238636;
+            color: white;
+        }
+        .btn-secondary {
+            background: #6e7681;
+            color: white;
+        }
+        .btn-warning {
+            background: #d29922;
+            color: white;
+        }
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .docs-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2ea043;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: #8b949e;
+        }
+        .api-input {
+            width: 100%;
+            padding: 10px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            margin: 5px 0;
+        }
+        .api-input::placeholder {
+            color: #6e7681;
+        }
+        .tool-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+        }
+        .tool-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 6px 0;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #c9d1d9;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .tool-btn:hover {
+            background: #30363d;
+        }
+        @media (max-width: 1024px) {
+            .docs-workspace {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="tech-header">
+        <h1>📚 Technical Documentation AI</h1>
+        <p>AI-powered documentation creation for developers and technical writers</p>
+    </div>
+
+    <div class="docs-workspace">
+        <!-- Left Sidebar: Document Types -->
+        <div class="sidebar">
+            <div class="ai-panel">
+                <h4>🤖 AI Configuration</h4>
+                <input type="password" id="google-key" class="api-input" placeholder="Google Gemini API Key">
+                <button class="btn btn-primary" onclick="enableTechAI()" style="width: 100%; margin-top: 10px;">
+                    Enable AI Assistant
+                </button>
+                <div id="ai-status" style="margin-top: 10px; text-align: center; color: #f85149;">
+                    AI Offline
+                </div>
+            </div>
+
+            <h4>📋 Document Types</h4>
+            <button class="doc-type-btn" onclick="loadDocType('api')">
+                🔌 API Documentation
+            </button>
+            <button class="doc-type-btn" onclick="loadDocType('readme')">
+                📖 README Guide
+            </button>
+            <button class="doc-type-btn" onclick="loadDocType('tutorial')">
+                🎓 Tutorial/Guide
+            </button>
+            <button class="doc-type-btn" onclick="loadDocType('architecture')">
+                🏗️ Architecture Doc
+            </button>
+            <button class="doc-type-btn" onclick="loadDocType('changelog')">
+                📝 Changelog
+            </button>
+            <button class="doc-type-btn" onclick="loadDocType('troubleshooting')">
+                🔧 Troubleshooting
+            </button>
+
+            <div class="tool-section">
+                <h4>🛠️ Code Tools</h4>
+                <button class="tool-btn" onclick="generateCodeExample()">Generate Code Example</button>
+                <button class="tool-btn" onclick="explainCode()">Explain Code Block</button>
+                <button class="tool-btn" onclick="addCodeComments()">Add Code Comments</button>
+                <button class="tool-btn" onclick="createDiagram()">Create Diagram</button>
+            </div>
+        </div>
+
+        <!-- Main Documentation Area -->
+        <div class="main-docs">
+            <div class="docs-stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="word-count">0</div>
+                    <div class="stat-label">Words</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="code-blocks">0</div>
+                    <div class="stat-label">Code Blocks</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="sections">0</div>
+                    <div class="stat-label">Sections</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="completeness">0%</div>
+                    <div class="stat-label">Complete</div>
+                </div>
+            </div>
+
+            <div id="tech-editor"></div>
+
+            <div style="margin-top: 20px; text-align: right;">
+                <button class="btn btn-secondary" onclick="validateDocs()">🔍 Validate Docs</button>
+                <button class="btn btn-warning" onclick="generateTOC()">📑 Generate TOC</button>
+                <button class="btn btn-primary" onclick="publishDocs()">🚀 Publish Docs</button>
+            </div>
+        </div>
+
+        <!-- Right Sidebar: AI Tools -->
+        <div class="sidebar">
+            <div class="tool-section">
+                <h4>🤖 AI Documentation Tools</h4>
+                <button class="tool-btn" onclick="improveClarity()">Improve Clarity</button>
+                <button class="tool-btn" onclick="addExamples()">Add Examples</button>
+                <button class="tool-btn" onclick="generateFAQ()">Generate FAQ</button>
+                <button class="tool-btn" onclick="createQuickStart()">Create Quick Start</button>
+                <button class="tool-btn" onclick="addBestPractices()">Add Best Practices</button>
+                <button class="tool-btn" onclick="generateAPIRef()">Generate API Reference</button>
+            </div>
+
+            <div class="tool-section">
+                <h4>📊 Documentation Quality</h4>
+                <div style="margin: 10px 0;">
+                    <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                        <span>Readability:</span>
+                        <span id="readability-score" style="color: #2ea043;">Good</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                        <span>Technical Depth:</span>
+                        <span id="tech-depth" style="color: #d29922;">Medium</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin: 5px 0;">
+                        <span>Code Coverage:</span>
+                        <span id="code-coverage" style="color: #f85149;">Low</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h4>🔗 Quick Inserts</h4>
+                <button class="tool-btn" onclick="insertCodeBlock()">Code Block</button>
+                <button class="tool-btn" onclick="insertTable()">Table</button>
+                <button class="tool-btn" onclick="insertCallout()">Callout/Warning</button>
+                <button class="tool-btn" onclick="insertTOC()">Table of Contents</button>
+            </div>
+
+            <div class="code-snippet">
+                <div style="color: #8b949e; margin-bottom: 8px;">💡 Tip:</div>
+                <div style="font-size: 11px; line-height: 1.4;">
+                    Use AI to generate comprehensive documentation from your code comments and function signatures.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { ArmorEditor } from 'https://unpkg.com/armor-editor@latest/dist/index.esm.js';
+
+        let techEditor = null;
+        let aiEnabled = false;
+        let currentDocType = 'api';
+
+        const docTemplates = {
+            api: {
+                title: 'API Documentation Template',
+                content: `
+                    <h1>API Documentation</h1>
+                    
+                    <h2>Overview</h2>
+                    <p>Brief description of the API and its purpose.</p>
+                    
+                    <h2>Authentication</h2>
+                    <p>Describe authentication methods (API keys, OAuth, etc.)</p>
+                    <pre><code>Authorization: Bearer YOUR_API_KEY</code></pre>
+                    
+                    <h2>Base URL</h2>
+                    <pre><code>https://api.example.com/v1</code></pre>
+                    
+                    <h2>Endpoints</h2>
+                    
+                    <h3>GET /users</h3>
+                    <p>Retrieve a list of users.</p>
+                    
+                    <h4>Parameters</h4>
+                    <table border="1">
+                        <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                        <tr><td>limit</td><td>integer</td><td>No</td><td>Number of results to return</td></tr>
+                        <tr><td>offset</td><td>integer</td><td>No</td><td>Number of results to skip</td></tr>
+                    </table>
+                    
+                    <h4>Response</h4>
+                    <pre><code>{
+  "users": [
+    {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@example.com"
+    }
+  ],
+  "total": 100,
+  "limit": 10,
+  "offset": 0
+}</code></pre>
+                    
+                    <h2>Error Codes</h2>
+                    <table border="1">
+                        <tr><th>Code</th><th>Description</th></tr>
+                        <tr><td>400</td><td>Bad Request</td></tr>
+                        <tr><td>401</td><td>Unauthorized</td></tr>
+                        <tr><td>404</td><td>Not Found</td></tr>
+                        <tr><td>500</td><td>Internal Server Error</td></tr>
+                    </table>
+                `
+            },
+            readme: {
+                title: 'README Template',
+                content: `
+                    <h1>Project Name</h1>
+                    <p>Brief description of what this project does and who it's for.</p>
+                    
+                    <h2>🚀 Quick Start</h2>
+                    <pre><code>npm install project-name
+npm start</code></pre>
+                    
+                    <h2>📋 Prerequisites</h2>
+                    <ul>
+                        <li>Node.js 16+ </li>
+                        <li>npm or yarn</li>
+                    </ul>
+                    
+                    <h2>⚙️ Installation</h2>
+                    <ol>
+                        <li>Clone the repository</li>
+                        <li>Install dependencies</li>
+                        <li>Configure environment variables</li>
+                        <li>Run the application</li>
+                    </ol>
+                    
+                    <h2>🎯 Usage</h2>
+                    <p>Provide code examples and usage instructions.</p>
+                    
+                    <h2>🤝 Contributing</h2>
+                    <p>Guidelines for contributing to the project.</p>
+                    
+                    <h2>📄 License</h2>
+                    <p>This project is licensed under the MIT License.</p>
+                `
+            },
+            tutorial: {
+                title: 'Tutorial Template',
+                content: `
+                    <h1>Getting Started Tutorial</h1>
+                    
+                    <h2>What You'll Learn</h2>
+                    <ul>
+                        <li>Core concepts and terminology</li>
+                        <li>Step-by-step implementation</li>
+                        <li>Best practices and tips</li>
+                    </ul>
+                    
+                    <h2>Prerequisites</h2>
+                    <p>What you need to know before starting this tutorial.</p>
+                    
+                    <h2>Step 1: Setup</h2>
+                    <p>First, let's set up your development environment.</p>
+                    <pre><code>// Installation command
+npm install example-package</code></pre>
+                    
+                    <h2>Step 2: Basic Configuration</h2>
+                    <p>Configure the basic settings.</p>
+                    
+                    <h2>Step 3: Your First Example</h2>
+                    <p>Let's create your first working example.</p>
+                    
+                    <h2>Next Steps</h2>
+                    <p>Where to go from here and additional resources.</p>
+                `
+            }
+        };
+
+        // Initialize technical documentation editor
+        function initializeTechEditor() {
+            techEditor = new ArmorEditor({
+                container: '#tech-editor',
+                height: '500px',
+                placeholder: 'Select a document type to get started with AI-powered technical writing...',
+                toolbar: [
+                    'bold', 'italic', 'underline', '|',
+                    'fontSize', 'fontFamily', '|',
+                    'alignLeft', 'alignCenter', 'alignRight', '|',
+                    'orderedList', 'unorderedList', '|',
+                    'link', 'image', 'table', 'code', '|',
+                    'wordCount'
+                ],
+                onChange: updateDocsStats,
+                theme: 'dark'
+            });
+        }
+
+        // Enable AI for technical documentation
+        window.enableTechAI = () => {
+            const apiKey = document.getElementById('google-key').value;
+            if (!apiKey) {
+                alert('Please enter your Google Gemini API key for technical AI assistance');
+                return;
+            }
+
+            // Reinitialize with AI
+            if (techEditor) {
+                techEditor.destroy();
+            }
+
+            techEditor = new ArmorEditor({
+                container: '#tech-editor',
+                height: '500px',
+                placeholder: 'AI-powered technical documentation editor ready! Start writing...',
+                toolbar: [
+                    'bold', 'italic', 'underline', '|',
+                    'fontSize', 'fontFamily', '|',
+                    'alignLeft', 'alignCenter', 'alignRight', '|',
+                    'orderedList', 'unorderedList', '|',
+                    'link', 'image', 'table', 'code', '|',
+                    'AI', '|',
+                    'wordCount'
+                ],
+                ai: {
+                    enabled: true,
+                    provider: 'google',
+                    apiKey: apiKey,
+                    model: 'gemini-pro',
+                    features: {
+                        smartSuggestions: true,
+                        contentGeneration: true,
+                        grammarCheck: true,
+                        toneAdjustment: true
+                    }
+                },
+                onChange: updateDocsStats,
+                theme: 'dark'
+            });
+
+            aiEnabled = true;
+            document.getElementById('ai-status').textContent = 'AI Online - Gemini Pro';
+            document.getElementById('ai-status').style.color = '#2ea043';
+        };
+
+        // Load document templates
+        window.loadDocType = (docType) => {
+            const template = docTemplates[docType];
+            if (template && techEditor) {
+                techEditor.setContent(template.content);
+                currentDocType = docType;
+                
+                // Update active button
+                document.querySelectorAll('.doc-type-btn').forEach(btn => btn.classList.remove('active'));
+                event.target.classList.add('active');
+                
+                updateDocsStats(template.content);
+            }
+        };
+
+        // Update documentation statistics
+        function updateDocsStats(content) {
+            const text = content.replace(/<[^>]*>/g, '');
+            const wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
+            const codeBlocks = (content.match(/<pre><code>/g) || []).length;
+            const sections = (content.match(/<h[1-6]>/g) || []).length;
+            const completeness = Math.min(100, Math.round((wordCount / 500) * 100));
+
+            document.getElementById('word-count').textContent = wordCount;
+            document.getElementById('code-blocks').textContent = codeBlocks;
+            document.getElementById('sections').textContent = sections;
+            document.getElementById('completeness').textContent = `${completeness}%`;
+
+            // Update quality indicators
+            updateQualityIndicators(wordCount, codeBlocks, sections);
+        }
+
+        function updateQualityIndicators(wordCount, codeBlocks, sections) {
+            // Readability
+            const readability = wordCount > 200 ? 'Good' : wordCount > 100 ? 'Fair' : 'Poor';
+            document.getElementById('readability-score').textContent = readability;
+            
+            // Technical depth
+            const techDepth = codeBlocks > 3 ? 'High' : codeBlocks > 1 ? 'Medium' : 'Low';
+            document.getElementById('tech-depth').textContent = techDepth;
+            
+            // Code coverage
+            const codeCoverage = codeBlocks > 2 ? 'Good' : codeBlocks > 0 ? 'Medium' : 'Low';
+            document.getElementById('code-coverage').textContent = codeCoverage;
+        }
+
+        // AI-powered documentation tools
+        window.generateCodeExample = async () => {
+            if (!aiEnabled) {
+                alert('Please enable AI first');
+                return;
+            }
+
+            try {
+                const example = await techEditor.generateContent(
+                    `Generate a practical code example for ${currentDocType} documentation with comments`
+                );
+                alert('Code example would be generated and inserted');
+            } catch (error) {
+                alert('Error generating code example: ' + error.message);
+            }
+        };
+
+        window.explainCode = () => {
+            if (!aiEnabled) {
+                alert('Please enable AI first');
+                return;
+            }
+
+            const selection = window.getSelection();
+            if (selection.toString()) {
+                alert('Selected code would be explained with detailed comments');
+            } else {
+                alert('Please select a code block to explain');
+            }
+        };
+
+        window.improveClarity = () => {
+            if (!aiEnabled) {
+                alert('Please enable AI first');
+                return;
+            }
+
+            const selection = window.getSelection();
+            if (selection.toString()) {
+                alert('Selected text would be improved for technical clarity');
+            } else {
+                alert('Please select some text to improve');
+            }
+        };
+
+        window.addExamples = async () => {
+            if (!aiEnabled) {
+                alert('Please enable AI first');
+                return;
+            }
+
+            try {
+                const examples = await techEditor.generateContent(
+                    `Add practical examples and use cases for ${currentDocType} documentation`
+                );
+                alert('Practical examples would be added');
+            } catch (error) {
+                alert('Error adding examples: ' + error.message);
+            }
+        };
+
+        // Quick insert functions
+        window.insertCodeBlock = () => {
+            if (techEditor) {
+                techEditor.insertHTML('<pre><code>// Your code here\n</code></pre>');
+            }
+        };
+
+        window.insertTable = () => {
+            if (techEditor) {
+                const table = `
+                    <table border="1">
+                        <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+                        <tr><td>example</td><td>string</td><td>Example parameter</td></tr>
+                    </table>
+                `;
+                techEditor.insertHTML(table);
+            }
+        };
+
+        window.insertCallout = () => {
+            if (techEditor) {
+                techEditor.insertHTML('<blockquote><strong>⚠️ Warning:</strong> Important information here</blockquote>');
+            }
+        };
+
+        // Documentation actions
+        window.validateDocs = () => {
+            const content = techEditor ? techEditor.getText() : '';
+            const hasTitle = content.includes('# ') || content.includes('<h1>');
+            const hasCode = content.includes('```') || content.includes('<code>');
+            const hasExamples = content.includes('example') || content.includes('Example');
+            
+            const score = (hasTitle ? 1 : 0) + (hasCode ? 1 : 0) + (hasExamples ? 1 : 0);
+            const quality = score === 3 ? 'Excellent' : score === 2 ? 'Good' : 'Needs Improvement';
+            
+            alert(`📊 Documentation Quality: ${quality}\n\n✅ Has Title: ${hasTitle}\n✅ Has Code: ${hasCode}\n✅ Has Examples: ${hasExamples}`);
+        };
+
+        window.generateTOC = () => {
+            alert('📑 Table of Contents would be generated based on headings');
+        };
+
+        window.publishDocs = () => {
+            const content = techEditor ? techEditor.getContent() : '';
+            if (content.length < 200) {
+                alert('Please write more content before publishing');
+                return;
+            }
+            alert('🚀 Documentation published to docs site and version control');
+        };
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeTechEditor();
+        });
+    </script>
+</body>
+</html>

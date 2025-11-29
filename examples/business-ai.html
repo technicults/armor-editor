@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business Document Assistant - ArmorEditor</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f2f5;
+        }
+        .business-header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .document-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+        .sidebar {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        .main-editor {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .template-btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.3s ease;
+        }
+        .template-btn:hover {
+            background: #e9ecef;
+            border-color: #007bff;
+        }
+        .template-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        .ai-panel {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 4px;
+            font-weight: 500;
+        }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-info { background: #17a2b8; color: white; }
+        .document-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .meta-item {
+            text-align: center;
+        }
+        .meta-label {
+            font-size: 12px;
+            color: #666;
+            display: block;
+        }
+        .meta-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        @media (max-width: 768px) {
+            .document-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="business-header">
+        <h1>💼 Business Document Assistant</h1>
+        <p>AI-powered professional document creation and management</p>
+    </div>
+
+    <div class="document-container">
+        <div class="sidebar">
+            <div class="ai-panel">
+                <h4>🤖 AI Configuration</h4>
+                <input type="password" id="anthropic-key" placeholder="Anthropic API Key" style="width: 100%; padding: 8px; margin: 5px 0; border: 1px solid #ddd; border-radius: 4px;">
+                <button class="btn btn-primary" onclick="enableBusinessAI()" style="width: 100%;">Enable AI Assistant</button>
+                <div id="ai-status" style="margin-top: 10px; font-weight: bold; color: #dc3545;">Disabled</div>
+            </div>
+
+            <h4>📋 Document Templates</h4>
+            <button class="template-btn" onclick="loadTemplate('proposal')">
+                📄 Project Proposal
+            </button>
+            <button class="template-btn" onclick="loadTemplate('memo')">
+                📝 Business Memo
+            </button>
+            <button class="template-btn" onclick="loadTemplate('report')">
+                📊 Executive Report
+            </button>
+            <button class="template-btn" onclick="loadTemplate('policy')">
+                📋 Company Policy
+            </button>
+            <button class="template-btn" onclick="loadTemplate('contract')">
+                📜 Contract Template
+            </button>
+
+            <h4 style="margin-top: 30px;">🎯 AI Actions</h4>
+            <button class="btn btn-primary" onclick="makeProfessional()" style="width: 100%; margin: 4px 0;">
+                Make Professional
+            </button>
+            <button class="btn btn-info" onclick="generateSummary()" style="width: 100%; margin: 4px 0;">
+                Generate Summary
+            </button>
+            <button class="btn btn-warning" onclick="checkCompliance()" style="width: 100%; margin: 4px 0;">
+                Check Compliance
+            </button>
+            <button class="btn btn-success" onclick="finalizeDocument()" style="width: 100%; margin: 4px 0;">
+                Finalize Document
+            </button>
+        </div>
+
+        <div class="main-editor">
+            <div class="document-meta">
+                <div class="meta-item">
+                    <span class="meta-label">Word Count</span>
+                    <span class="meta-value" id="word-count">0</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Pages</span>
+                    <span class="meta-value" id="page-count">1</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Reading Time</span>
+                    <span class="meta-value" id="reading-time">0 min</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Compliance</span>
+                    <span class="meta-value" id="compliance-status">Pending</span>
+                </div>
+            </div>
+
+            <div id="business-editor"></div>
+
+            <div style="margin-top: 20px; text-align: right;">
+                <button class="btn btn-primary" onclick="saveDraft()">💾 Save Draft</button>
+                <button class="btn btn-info" onclick="requestReview()">👥 Request Review</button>
+                <button class="btn btn-success" onclick="approveDocument()">✅ Approve & Publish</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { ArmorEditor } from 'https://unpkg.com/armor-editor@latest/dist/index.esm.js';
+
+        let businessEditor = null;
+        let aiEnabled = false;
+        let currentTemplate = null;
+
+        const templates = {
+            proposal: {
+                title: 'Project Proposal Template',
+                content: `
+                    <h1>Project Proposal: {{project_name}}</h1>
+                    <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                    <p><strong>Prepared by:</strong> {{author_name}}</p>
+                    <p><strong>Department:</strong> {{department}}</p>
+
+                    <h2>Executive Summary</h2>
+                    <p>Provide a brief overview of the project, its objectives, and expected outcomes.</p>
+
+                    <h2>Project Scope</h2>
+                    <p>Define the boundaries and deliverables of the project.</p>
+
+                    <h2>Timeline & Milestones</h2>
+                    <ul>
+                        <li>Phase 1: Planning & Design (Weeks 1-2)</li>
+                        <li>Phase 2: Development (Weeks 3-8)</li>
+                        <li>Phase 3: Testing & Deployment (Weeks 9-10)</li>
+                    </ul>
+
+                    <h2>Budget Estimation</h2>
+                    <p>Total estimated cost: ${{budget}}</p>
+
+                    <h2>Risk Assessment</h2>
+                    <p>Identify potential risks and mitigation strategies.</p>
+
+                    <h2>Approval</h2>
+                    <p>☐ Department Head: ________________</p>
+                    <p>☐ Finance Approval: ________________</p>
+                    <p>☐ Executive Approval: ________________</p>
+                `
+            },
+            memo: {
+                title: 'Business Memo Template',
+                content: `
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1>MEMORANDUM</h1>
+                    </div>
+
+                    <p><strong>TO:</strong> {{recipient}}</p>
+                    <p><strong>FROM:</strong> {{sender}}</p>
+                    <p><strong>DATE:</strong> ${new Date().toLocaleDateString()}</p>
+                    <p><strong>SUBJECT:</strong> {{subject}}</p>
+
+                    <hr>
+
+                    <h2>Purpose</h2>
+                    <p>State the purpose of this memorandum clearly and concisely.</p>
+
+                    <h2>Background</h2>
+                    <p>Provide relevant background information and context.</p>
+
+                    <h2>Key Points</h2>
+                    <ul>
+                        <li>First key point or recommendation</li>
+                        <li>Second key point or recommendation</li>
+                        <li>Third key point or recommendation</li>
+                    </ul>
+
+                    <h2>Action Required</h2>
+                    <p>Specify what action is needed and by when.</p>
+
+                    <h2>Next Steps</h2>
+                    <p>Outline the next steps and timeline.</p>
+                `
+            },
+            report: {
+                title: 'Executive Report Template',
+                content: `
+                    <h1>Executive Report</h1>
+                    <p><strong>Report Period:</strong> {{period}}</p>
+                    <p><strong>Prepared by:</strong> {{author}}</p>
+                    <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+
+                    <h2>Executive Summary</h2>
+                    <p>High-level overview of key findings and recommendations.</p>
+
+                    <h2>Key Metrics</h2>
+                    <table border="1" style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <th>Metric</th>
+                            <th>Current Period</th>
+                            <th>Previous Period</th>
+                            <th>Change</th>
+                        </tr>
+                        <tr>
+                            <td>Revenue</td>
+                            <td>${{current_revenue}}</td>
+                            <td>${{previous_revenue}}</td>
+                            <td>{{revenue_change}}%</td>
+                        </tr>
+                    </table>
+
+                    <h2>Analysis</h2>
+                    <p>Detailed analysis of performance and trends.</p>
+
+                    <h2>Recommendations</h2>
+                    <ol>
+                        <li>Primary recommendation with rationale</li>
+                        <li>Secondary recommendation with expected impact</li>
+                        <li>Long-term strategic recommendation</li>
+                    </ol>
+
+                    <h2>Conclusion</h2>
+                    <p>Summary of key takeaways and next steps.</p>
+                `
+            }
+        };
+
+        // Initialize business editor
+        function initializeBusinessEditor() {
+            businessEditor = new ArmorEditor({
+                container: '#business-editor',
+                height: '600px',
+                placeholder: 'Select a template from the sidebar to get started...',
+                toolbar: [
+                    'bold', 'italic', 'underline', '|',
+                    'fontSize', 'fontFamily', 'textColor', '|',
+                    'alignLeft', 'alignCenter', 'alignRight', 'alignJustify', '|',
+                    'orderedList', 'unorderedList', '|',
+                    'link', 'image', 'table', '|',
+                    'wordCount', 'spellCheck'
+                ],
+                onChange: updateDocumentStats,
+                autoSave: {
+                    interval: 60000, // 1 minute
+                    callback: (content) => console.log('Auto-saved business document')
+                }
+            });
+        }
+
+        // Enable AI features
+        window.enableBusinessAI = () => {
+            const apiKey = document.getElementById('anthropic-key').value;
+            if (!apiKey) {
+                alert('Please enter your Anthropic API key for professional AI assistance');
+                return;
+            }
+
+            // Reinitialize with AI
+            if (businessEditor) {
+                businessEditor.destroy();
+            }
+
+            businessEditor = new ArmorEditor({
+                container: '#business-editor',
+                height: '600px',
+                placeholder: 'AI-powered business document editor is ready!',
+                toolbar: [
+                    'bold', 'italic', 'underline', '|',
+                    'fontSize', 'fontFamily', 'textColor', '|',
+                    'alignLeft', 'alignCenter', 'alignRight', 'alignJustify', '|',
+                    'orderedList', 'unorderedList', '|',
+                    'link', 'image', 'table', '|',
+                    'AI', '|',
+                    'wordCount', 'spellCheck'
+                ],
+                ai: {
+                    enabled: true,
+                    provider: 'anthropic',
+                    apiKey: apiKey,
+                    model: 'claude-3-sonnet',
+                    features: {
+                        smartSuggestions: true,
+                        contentGeneration: true,
+                        grammarCheck: true,
+                        toneAdjustment: true
+                    }
+                },
+                onChange: updateDocumentStats
+            });
+
+            aiEnabled = true;
+            document.getElementById('ai-status').textContent = 'Active - Claude 3 Sonnet';
+            document.getElementById('ai-status').style.color = '#28a745';
+        };
+
+        // Load document templates
+        window.loadTemplate = (templateId) => {
+            const template = templates[templateId];
+            if (template && businessEditor) {
+                businessEditor.setContent(template.content);
+                currentTemplate = templateId;
+                
+                // Update active button
+                document.querySelectorAll('.template-btn').forEach(btn => btn.classList.remove('active'));
+                event.target.classList.add('active');
+                
+                updateDocumentStats(template.content);
+            }
+        };
+
+        // Update document statistics
+        function updateDocumentStats(content) {
+            const text = content.replace(/<[^>]*>/g, '');
+            const wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
+            const pageCount = Math.ceil(wordCount / 250); // ~250 words per page
+            const readingTime = Math.ceil(wordCount / 200); // 200 words per minute
+
+            document.getElementById('word-count').textContent = wordCount;
+            document.getElementById('page-count').textContent = pageCount;
+            document.getElementById('reading-time').textContent = `${readingTime} min`;
+        }
+
+        // AI-powered business functions
+        window.makeProfessional = async () => {
+            if (!aiEnabled) {
+                alert('Please enable AI first');
+                return;
+            }
+
+            const selection = window.getSelection();
+            if (selection.toString()) {
+                try {
+                    const improved = await businessEditor.generateContent(
+                        `Make this text more professional and business-appropriate: "${selection.toString()}"`
+                    );
+                    // In real implementation, replace selected text
+                    alert('Text would be made more professional');
+                } catch (error) {
+                    alert('Error improving text: ' + error.message);
+                }
+            } else {
+                alert('Please select some text to make professional');
+            }
+        };
+
+        window.generateSummary = async () => {
+            if (!aiEnabled) {
+                alert('Please enable AI first');
+                return;
+            }
+
+            const content = businessEditor.getText();
+            if (content.length < 100) {
+                alert('Please write more content before generating a summary');
+                return;
+            }
+
+            try {
+                const summary = await businessEditor.generateContent(
+                    `Generate an executive summary for this business document: "${content.substring(0, 1000)}"`
+                );
+                alert('Executive summary would be generated and inserted');
+            } catch (error) {
+                alert('Error generating summary: ' + error.message);
+            }
+        };
+
+        window.checkCompliance = () => {
+            const content = businessEditor ? businessEditor.getText() : '';
+            
+            // Simulate compliance check
+            const hasRequiredSections = content.includes('Executive Summary') && 
+                                       content.includes('Budget') && 
+                                       content.includes('Approval');
+            
+            const complianceStatus = hasRequiredSections ? 'Compliant' : 'Needs Review';
+            document.getElementById('compliance-status').textContent = complianceStatus;
+            document.getElementById('compliance-status').style.color = hasRequiredSections ? '#28a745' : '#dc3545';
+            
+            alert(`Compliance Check: ${complianceStatus}`);
+        };
+
+        window.finalizeDocument = () => {
+            if (!businessEditor) return;
+            
+            const content = businessEditor.getContent();
+            const wordCount = content.replace(/<[^>]*>/g, '').split(/\s+/).filter(word => word.length > 0).length;
+            
+            if (wordCount < 100) {
+                alert('Document needs more content before finalizing');
+                return;
+            }
+            
+            alert('✅ Document finalized and ready for distribution');
+        };
+
+        // Document actions
+        window.saveDraft = () => {
+            console.log('Business document draft saved');
+            alert('💾 Draft saved successfully');
+        };
+
+        window.requestReview = () => {
+            alert('👥 Review request sent to stakeholders');
+        };
+
+        window.approveDocument = () => {
+            alert('✅ Document approved and published to company portal');
+        };
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeBusinessEditor();
+        });
+    </script>
+</body>
+</html>

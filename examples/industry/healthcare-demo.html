@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArmorEditor - Healthcare HIPAA Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f8ff;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .compliance-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin: 5px;
+        }
+        .demo-section {
+            background: white;
+            margin: 20px 0;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .security-indicator {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .user-role {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn.danger {
+            background: #dc3545;
+        }
+        .btn.success {
+            background: #28a745;
+        }
+        .audit-log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .patient-info {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏥 Healthcare Documentation System</h1>
+        <p>HIPAA-Compliant Medical Records with ArmorEditor</p>
+        <div>
+            <span class="compliance-badge">HIPAA Compliant</span>
+            <span class="compliance-badge">End-to-End Encrypted</span>
+            <span class="compliance-badge">Audit Logging</span>
+            <span class="compliance-badge">Role-Based Access</span>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h3>👤 User Authentication & Roles</h3>
+        <div class="user-role">
+            <strong>Current User:</strong> <span id="current-user">Dr. Sarah Johnson</span><br>
+            <strong>Role:</strong> <span id="current-role">Physician</span><br>
+            <strong>Department:</strong> <span id="current-dept">Cardiology</span><br>
+            <strong>Permissions:</strong> <span id="current-permissions">Read, Write, Prescribe</span>
+        </div>
+        <button class="btn" onclick="switchRole('doctor')">Login as Doctor</button>
+        <button class="btn" onclick="switchRole('nurse')">Login as Nurse</button>
+        <button class="btn" onclick="switchRole('admin')">Login as Admin</button>
+        <button class="btn" onclick="switchRole('patient')">Login as Patient</button>
+    </div>
+
+    <div class="demo-section">
+        <h3>📋 Patient Medical Record</h3>
+        <div class="patient-info">
+            <strong>⚠️ Protected Health Information (PHI)</strong><br>
+            This section contains encrypted patient data. Access is logged and monitored.
+        </div>
+        <div class="security-indicator">
+            🔒 <strong>Security Status:</strong> End-to-end encrypted | 🔍 <strong>Audit:</strong> All actions logged | 👥 <strong>Access:</strong> Role-based permissions active
+        </div>
+        <div id="medical-record-editor"></div>
+        
+        <div style="margin-top: 15px;">
+            <button class="btn success" onclick="saveRecord()">💾 Save Record</button>
+            <button class="btn" onclick="addVoiceNote()">🎤 Add Voice Note</button>
+            <button class="btn" onclick="requestConsult()">👨‍⚕️ Request Consultation</button>
+            <button class="btn danger" onclick="emergencyAccess()">🚨 Emergency Access</button>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h3>🎤 Voice Notes & Transcription</h3>
+        <p>HIPAA-compliant voice recording with automatic medical transcription</p>
+        <div id="voice-notes-editor"></div>
+        <div style="margin-top: 10px;">
+            <button class="btn" onclick="startVoiceRecording()">🎤 Start Recording</button>
+            <button class="btn" onclick="stopVoiceRecording()">⏹️ Stop Recording</button>
+            <span id="recording-status"></span>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h3>👥 Secure Collaboration</h3>
+        <p>Multi-provider consultation with encrypted communication</p>
+        <div id="collaboration-editor"></div>
+        <div style="margin-top: 10px;">
+            <button class="btn" onclick="startVideoConsult()">📹 Start Video Consultation</button>
+            <button class="btn" onclick="shareScreen()">🖥️ Share Medical Images</button>
+            <button class="btn" onclick="inviteSpecialist()">👨‍⚕️ Invite Specialist</button>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h3>📊 Compliance & Audit Trail</h3>
+        <div class="audit-log" id="audit-log">
+            [2024-11-30 04:23:18] Dr. Sarah Johnson (Physician) - Accessed patient record #12345
+            [2024-11-30 04:22:45] Dr. Sarah Johnson (Physician) - Updated medication list
+            [2024-11-30 04:21:30] Nurse Mary Smith (Nurse) - Added vital signs
+            [2024-11-30 04:20:15] Dr. Sarah Johnson (Physician) - Reviewed lab results
+            [2024-11-30 04:19:00] System - Automatic backup completed
+            [2024-11-30 04:18:30] Dr. Sarah Johnson (Physician) - Logged in via SSO
+        </div>
+        <div style="margin-top: 10px;">
+            <button class="btn" onclick="generateComplianceReport()">📋 Generate HIPAA Report</button>
+            <button class="btn" onclick="exportAuditLog()">📤 Export Audit Log</button>
+            <button class="btn" onclick="dataRetentionCheck()">🗂️ Data Retention Check</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { ArmorEditor } from 'https://unpkg.com/armor-editor@latest/dist/index.esm.js';
+
+        let editors = {};
+        let currentUser = {
+            name: 'Dr. Sarah Johnson',
+            role: 'doctor',
+            department: 'Cardiology',
+            permissions: ['read', 'write', 'prescribe']
+        };
+
+        // Initialize HIPAA-compliant editors
+        function initializeEditors() {
+            // Medical Record Editor
+            editors.medical = new ArmorEditor({
+                container: '#medical-record-editor',
+                height: '400px',
+                
+                // HIPAA Compliance
+                compliance: {
+                    hipaa: {
+                        enabled: true,
+                        auditLogging: true,
+                        encryptionRequired: true,
+                        accessControls: true,
+                        dataRetentionYears: 7
+                    }
+                },
+                
+                // End-to-End Encryption
+                encryption: {
+                    enabled: true,
+                    algorithm: 'AES-GCM',
+                    keySize: 256,
+                    autoEncrypt: true
+                },
+                
+                // Role-Based Permissions
+                permissions: {
+                    enabled: true,
+                    roles: {
+                        doctor: {
+                            permissions: ['read', 'write', 'prescribe', 'delete'],
+                            features: ['all']
+                        },
+                        nurse: {
+                            permissions: ['read', 'write', 'update_vitals'],
+                            features: ['basic_editing', 'voice_notes']
+                        },
+                        admin: {
+                            permissions: ['read', 'write', 'delete', 'manage_users', 'audit'],
+                            features: ['all']
+                        },
+                        patient: {
+                            permissions: ['read_own_records'],
+                            features: ['read_only']
+                        }
+                    },
+                    currentUser: currentUser
+                },
+                
+                // Medical Templates
+                templates: {
+                    enabled: true,
+                    categories: ['medical'],
+                    customTemplates: [
+                        {
+                            id: 'patient-assessment',
+                            name: 'Patient Assessment',
+                            content: `
+                                <h3>Patient Assessment - {{date}}</h3>
+                                <p><strong>Chief Complaint:</strong> {{chief_complaint}}</p>
+                                <p><strong>History of Present Illness:</strong> {{hpi}}</p>
+                                <p><strong>Physical Examination:</strong> {{physical_exam}}</p>
+                                <p><strong>Assessment & Plan:</strong> {{assessment_plan}}</p>
+                                <p><strong>Provider:</strong> {{provider_name}}</p>
+                            `
+                        }
+                    ]
+                },
+                
+                content: `
+                    <h3>Patient: John Doe (DOB: 01/15/1980)</h3>
+                    <p><strong>MRN:</strong> 12345678 | <strong>Date:</strong> November 30, 2024</p>
+                    
+                    <h4>Chief Complaint:</h4>
+                    <p>Chest pain and shortness of breath for 2 days</p>
+                    
+                    <h4>Vital Signs:</h4>
+                    <ul>
+                        <li>BP: 140/90 mmHg</li>
+                        <li>HR: 88 bpm</li>
+                        <li>Temp: 98.6°F</li>
+                        <li>O2 Sat: 96% on room air</li>
+                    </ul>
+                    
+                    <h4>Assessment & Plan:</h4>
+                    <p>Possible cardiac etiology. Recommend ECG, chest X-ray, and cardiac enzymes.</p>
+                `
+            });
+
+            // Voice Notes Editor
+            editors.voice = new ArmorEditor({
+                container: '#voice-notes-editor',
+                height: '200px',
+                
+                // Voice Comments with Medical Transcription
+                voiceComments: {
+                    enabled: true,
+                    maxDuration: 600, // 10 minutes
+                    transcription: true,
+                    medicalTerms: true,
+                    languages: ['en-US']
+                },
+                
+                // HIPAA Compliance
+                compliance: {
+                    hipaa: { enabled: true, auditLogging: true }
+                },
+                
+                placeholder: 'Voice notes will appear here with automatic medical transcription...'
+            });
+
+            // Collaboration Editor
+            editors.collab = new ArmorEditor({
+                container: '#collaboration-editor',
+                height: '250px',
+                
+                // Secure Collaboration
+                collaboration: {
+                    enabled: true,
+                    channelId: 'patient-12345-consult',
+                    userId: currentUser.name.replace(/\s+/g, '-').toLowerCase(),
+                    userName: currentUser.name,
+                    encryption: true
+                },
+                
+                // Video Integration
+                videoIntegration: {
+                    enabled: true,
+                    recording: true,
+                    maxParticipants: 5,
+                    encryption: true
+                },
+                
+                // Track Changes for Medical Reviews
+                trackChanges: true,
+                comments: true,
+                
+                content: '<p>Consultation notes will be shared securely between providers...</p>'
+            });
+        }
+
+        // Role switching
+        window.switchRole = (role) => {
+            const roles = {
+                doctor: {
+                    name: 'Dr. Sarah Johnson',
+                    role: 'Physician',
+                    department: 'Cardiology',
+                    permissions: 'Read, Write, Prescribe, Delete'
+                },
+                nurse: {
+                    name: 'Nurse Mary Smith',
+                    role: 'Registered Nurse',
+                    department: 'Cardiology',
+                    permissions: 'Read, Write, Update Vitals'
+                },
+                admin: {
+                    name: 'Admin John Davis',
+                    role: 'System Administrator',
+                    department: 'IT',
+                    permissions: 'All Permissions, User Management'
+                },
+                patient: {
+                    name: 'Patient John Doe',
+                    role: 'Patient',
+                    department: 'N/A',
+                    permissions: 'Read Own Records Only'
+                }
+            };
+
+            const user = roles[role];
+            document.getElementById('current-user').textContent = user.name;
+            document.getElementById('current-role').textContent = user.role;
+            document.getElementById('current-dept').textContent = user.department;
+            document.getElementById('current-permissions').textContent = user.permissions;
+
+            // Log the role change
+            logAuditEvent(`${user.name} (${user.role}) - Logged in via role switch`);
+        };
+
+        // Medical functions
+        window.saveRecord = () => {
+            logAuditEvent(`${currentUser.name} - Saved patient record #12345`);
+            alert('✅ Medical record saved securely with encryption');
+        };
+
+        window.addVoiceNote = () => {
+            if (editors.voice) {
+                editors.voice.startVoiceRecording();
+                logAuditEvent(`${currentUser.name} - Started voice note recording`);
+            }
+        };
+
+        window.requestConsult = () => {
+            logAuditEvent(`${currentUser.name} - Requested specialist consultation`);
+            alert('📞 Consultation request sent to cardiothoracic surgery');
+        };
+
+        window.emergencyAccess = () => {
+            logAuditEvent(`${currentUser.name} - EMERGENCY ACCESS GRANTED`);
+            alert('🚨 Emergency access granted - All restrictions temporarily lifted');
+        };
+
+        // Voice recording functions
+        window.startVoiceRecording = () => {
+            document.getElementById('recording-status').innerHTML = '🔴 Recording...';
+            logAuditEvent(`${currentUser.name} - Started voice recording`);
+        };
+
+        window.stopVoiceRecording = () => {
+            document.getElementById('recording-status').innerHTML = '✅ Recording saved and transcribed';
+            logAuditEvent(`${currentUser.name} - Stopped voice recording`);
+        };
+
+        // Collaboration functions
+        window.startVideoConsult = () => {
+            logAuditEvent(`${currentUser.name} - Started video consultation`);
+            alert('📹 Video consultation started - Encrypted connection established');
+        };
+
+        window.shareScreen = () => {
+            logAuditEvent(`${currentUser.name} - Shared medical images`);
+            alert('🖥️ Screen sharing started - Medical images visible to participants');
+        };
+
+        window.inviteSpecialist = () => {
+            logAuditEvent(`${currentUser.name} - Invited specialist to consultation`);
+            alert('👨‍⚕️ Specialist invitation sent - Dr. Michael Chen (Cardiothoracic Surgery)');
+        };
+
+        // Compliance functions
+        window.generateComplianceReport = () => {
+            logAuditEvent(`${currentUser.name} - Generated HIPAA compliance report`);
+            alert('📋 HIPAA compliance report generated - All requirements met');
+        };
+
+        window.exportAuditLog = () => {
+            logAuditEvent(`${currentUser.name} - Exported audit log`);
+            alert('📤 Audit log exported - Encrypted file ready for download');
+        };
+
+        window.dataRetentionCheck = () => {
+            logAuditEvent(`${currentUser.name} - Performed data retention check`);
+            alert('🗂️ Data retention check complete - 7-year retention policy compliant');
+        };
+
+        // Audit logging
+        function logAuditEvent(event) {
+            const timestamp = new Date().toISOString().replace('T', ' ').substr(0, 19);
+            const logEntry = `[${timestamp}] ${event}`;
+            const auditLog = document.getElementById('audit-log');
+            auditLog.innerHTML = logEntry + '\n' + auditLog.innerHTML;
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeEditors();
+            logAuditEvent('System - Healthcare demo initialized');
+        });
+    </script>
+</body>
+</html>

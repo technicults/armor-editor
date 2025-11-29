@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creative Writing Tool - ArmorEditor</title>
+    <style>
+        body {
+            font-family: 'Georgia', serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .creative-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .creative-header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .creative-header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .writing-workspace {
+            display: grid;
+            grid-template-columns: 250px 1fr 250px;
+            min-height: 600px;
+        }
+        .left-panel, .right-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-right: 1px solid #dee2e6;
+        }
+        .right-panel {
+            border-right: none;
+            border-left: 1px solid #dee2e6;
+        }
+        .main-writing {
+            padding: 30px;
+            background: white;
+        }
+        .inspiration-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .inspiration-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        .genre-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #fff;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .genre-btn:hover, .genre-btn.active {
+            border-color: #ff6b6b;
+            background: #ff6b6b;
+            color: white;
+        }
+        .writing-stats {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        .ai-tools {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .tool-btn {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            margin: 4px 0;
+            background: #ff9800;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .tool-btn:hover {
+            background: #f57c00;
+        }
+        .mood-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+            margin: 10px 0;
+        }
+        .mood-btn {
+            padding: 8px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            text-align: center;
+        }
+        .mood-btn.active {
+            background: #ff6b6b;
+            color: white;
+            border-color: #ff6b6b;
+        }
+        @media (max-width: 768px) {
+            .writing-workspace {
+                grid-template-columns: 1fr;
+            }
+            .left-panel, .right-panel {
+                border: none;
+                border-bottom: 1px solid #dee2e6;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="creative-container">
+        <div class="creative-header">
+            <h1>✍️ Creative Writing Studio</h1>
+            <p>Unleash your creativity with AI-powered writing assistance</p>
+        </div>
+
+        <div class="writing-workspace">
+            <!-- Left Panel: Inspiration & Genres -->
+            <div class="left-panel">
+                <h4>🎭 Writing Genres</h4>
+                <button class="genre-btn" onclick="setGenre('fantasy')">🧙‍♂️ Fantasy</button>
+                <button class="genre-btn" onclick="setGenre('scifi')">🚀 Sci-Fi</button>
+                <button class="genre-btn" onclick="setGenre('mystery')">🔍 Mystery</button>
+                <button class="genre-btn" onclick="setGenre('romance')">💕 Romance</button>
+                <button class="genre-btn" onclick="setGenre('horror')">👻 Horror</button>
+                <button class="genre-btn" onclick="setGenre('drama')">🎭 Drama</button>
+
+                <h4 style="margin-top: 30px;">💡 Story Starters</h4>
+                <div class="inspiration-card" onclick="useStoryStarter('mysterious')">
+                    <strong>The Mysterious Letter</strong>
+                    <p>A letter arrives with no return address...</p>
+                </div>
+                <div class="inspiration-card" onclick="useStoryStarter('timetravel')">
+                    <strong>Time Traveler's Dilemma</strong>
+                    <p>You wake up in the wrong century...</p>
+                </div>
+                <div class="inspiration-card" onclick="useStoryStarter('lastperson')">
+                    <strong>Last Person on Earth</strong>
+                    <p>The silence is deafening until...</p>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <input type="password" id="openai-key" placeholder="OpenAI API Key" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                    <button onclick="enableCreativeAI()" style="width: 100%; padding: 10px; background: #ff6b6b; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        🤖 Enable AI Muse
+                    </button>
+                    <div id="ai-status" style="margin-top: 10px; text-align: center; font-weight: bold; color: #dc3545;">AI Muse Sleeping</div>
+                </div>
+            </div>
+
+            <!-- Main Writing Area -->
+            <div class="main-writing">
+                <div class="writing-stats">
+                    <div class="stat-row">
+                        <span>Words:</span>
+                        <span id="word-count">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Characters:</span>
+                        <span id="char-count">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Reading Time:</span>
+                        <span id="reading-time">0 min</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>Current Mood:</span>
+                        <span id="current-mood">Neutral</span>
+                    </div>
+                </div>
+
+                <div id="creative-editor"></div>
+            </div>
+
+            <!-- Right Panel: AI Tools & Mood -->
+            <div class="right-panel">
+                <h4>🎨 Writing Mood</h4>
+                <div class="mood-selector">
+                    <button class="mood-btn" onclick="setMood('dark')">🌙 Dark</button>
+                    <button class="mood-btn" onclick="setMood('light')">☀️ Light</button>
+                    <button class="mood-btn" onclick="setMood('mysterious')">🔮 Mysterious</button>
+                    <button class="mood-btn" onclick="setMood('romantic')">💖 Romantic</button>
+                    <button class="mood-btn" onclick="setMood('action')">⚡ Action</button>
+                    <button class="mood-btn" onclick="setMood('peaceful')">🕊️ Peaceful</button>
+                </div>
+
+                <div class="ai-tools">
+                    <h4>🤖 AI Writing Tools</h4>
+                    <button class="tool-btn" onclick="continueStory()">Continue Story</button>
+                    <button class="tool-btn" onclick="addDialogue()">Add Dialogue</button>
+                    <button class="tool-btn" onclick="describeScene()">Describe Scene</button>
+                    <button class="tool-btn" onclick="createCharacter()">Create Character</button>
+                    <button class="tool-btn" onclick="addTwist()">Plot Twist</button>
+                    <button class="tool-btn" onclick="improveStyle()">Improve Style</button>
+                </div>
+
+                <h4>📚 Writing Tips</h4>
+                <div style="font-size: 12px; line-height: 1.4;">
+                    <p><strong>Show, don't tell:</strong> Use actions and dialogue to reveal character traits.</p>
+                    <p><strong>Sensory details:</strong> Engage all five senses in your descriptions.</p>
+                    <p><strong>Conflict drives story:</strong> Every scene should have some form of tension.</p>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button onclick="saveStory()" style="width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 5px 0;">
+                        💾 Save Story
+                    </button>
+                    <button onclick="exportStory()" style="width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; margin: 5px 0;">
+                        📤 Export Story
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { ArmorEditor } from 'https://unpkg.com/armor-editor@latest/dist/index.esm.js';
+
+        let creativeEditor = null;
+        let aiEnabled = false;
+        let currentGenre = 'fantasy';
+        let currentMood = 'neutral';
+
+        const storyStarters = {
+            mysterious: "The letter arrived on a Tuesday, with no return address and a wax seal that seemed to shimmer in the lamplight. As I broke it open, the words inside made my blood run cold...",
+            timetravel: "I woke up to the sound of horse hooves on cobblestone. That was my first clue that something had gone terribly wrong. The last thing I remembered was falling asleep in my apartment in 2024...",
+            lastperson: "The silence had been my companion for three months now. No cars, no voices, no life. I thought I was truly alone until I heard the knock on my door..."
+        };
+
+        // Initialize creative editor
+        function initializeCreativeEditor() {
+            creativeEditor = new ArmorEditor({
+                container: '#creative-editor',
+                height: '450px',
+                placeholder: 'Begin your story here... Let your imagination flow...',
+                toolbar: [
+                    'bold', 'italic', 'underline', '|',
+                    'fontSize', 'textColor', '|',
+                    'alignLeft', 'alignCenter', 'alignRight', '|',
+                    'orderedList', 'unorderedList', '|',
+                    'blockquote', '|',
+                    'wordCount'
+                ],
+                onChange: updateWritingStats,
+                autoSave: {
+                    interval: 30000,
+                    callback: (content) => console.log('Story auto-saved')
+                }
+            });
+
+            // Set initial creative content
+            creativeEditor.setContent(`
+                <h2>Welcome to Your Creative Writing Studio! ✨</h2>
+                <p><em>This is where your stories come to life...</em></p>
+                <p>Choose a genre from the left panel, select a story starter, or begin with your own idea. The AI Muse is here to help when you need inspiration!</p>
+                <blockquote>
+                    "The first draft of anything is shit." - Ernest Hemingway<br>
+                    <em>So don't worry about perfection, just start writing!</em>
+                </blockquote>
+                <p>Ready to create something amazing? Your story begins now...</p>
+            `);
+        }
+
+        // Enable AI creative assistance
+        window.enableCreativeAI = () => {
+            const apiKey = document.getElementById('openai-key').value;
+            if (!apiKey) {
+                alert('Please enter your OpenAI API key to awaken the AI Muse');
+                return;
+            }
+
+            // Reinitialize with AI
+            if (creativeEditor) {
+                creativeEditor.destroy();
+            }
+
+            creativeEditor = new ArmorEditor({
+                container: '#creative-editor',
+                height: '450px',
+                placeholder: 'The AI Muse is awake! Start writing and let creativity flow...',
+                toolbar: [
+                    'bold', 'italic', 'underline', '|',
+                    'fontSize', 'textColor', '|',
+                    'alignLeft', 'alignCenter', 'alignRight', '|',
+                    'orderedList', 'unorderedList', '|',
+                    'blockquote', '|',
+                    'AI', '|',
+                    'wordCount'
+                ],
+                ai: {
+                    enabled: true,
+                    provider: 'openai',
+                    apiKey: apiKey,
+                    model: 'gpt-4',
+                    features: {
+                        smartSuggestions: true,
+                        contentGeneration: true,
+                        grammarCheck: true,
+                        toneAdjustment: true
+                    }
+                },
+                onChange: updateWritingStats
+            });
+
+            aiEnabled = true;
+            document.getElementById('ai-status').textContent = 'AI Muse Awakened! 🌟';
+            document.getElementById('ai-status').style.color = '#28a745';
+        };
+
+        // Genre and mood functions
+        window.setGenre = (genre) => {
+            currentGenre = genre;
+            document.querySelectorAll('.genre-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update editor theme based on genre
+            const themes = {
+                fantasy: 'magical',
+                scifi: 'futuristic',
+                mystery: 'dark',
+                romance: 'warm',
+                horror: 'dark',
+                drama: 'neutral'
+            };
+        };
+
+        window.setMood = (mood) => {
+            currentMood = mood;
+            document.getElementById('current-mood').textContent = mood.charAt(0).toUpperCase() + mood.slice(1);
+            document.querySelectorAll('.mood-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        };
+
+        // Story starter functions
+        window.useStoryStarter = (starter) => {
+            if (creativeEditor) {
+                const content = storyStarters[starter];
+                creativeEditor.setContent(`<p>${content}</p><p><br></p><p><em>Continue the story...</em></p>`);
+            }
+        };
+
+        // AI creative tools
+        window.continueStory = async () => {
+            if (!aiEnabled) {
+                alert('Please enable the AI Muse first');
+                return;
+            }
+
+            const currentText = creativeEditor.getText();
+            if (currentText.length < 50) {
+                alert('Write at least a few sentences before asking AI to continue');
+                return;
+            }
+
+            try {
+                const continuation = await creativeEditor.generateContent(
+                    `Continue this ${currentGenre} story in a ${currentMood} mood: "${currentText.slice(-200)}"`
+                );
+                // In real implementation, append to editor
+                alert('Story continuation would be added');
+            } catch (error) {
+                alert('Error continuing story: ' + error.message);
+            }
+        };
+
+        window.addDialogue = async () => {
+            if (!aiEnabled) {
+                alert('Please enable the AI Muse first');
+                return;
+            }
+
+            try {
+                const dialogue = await creativeEditor.generateContent(
+                    `Add realistic dialogue for a ${currentGenre} story with a ${currentMood} mood`
+                );
+                alert('Dialogue would be added to your story');
+            } catch (error) {
+                alert('Error generating dialogue: ' + error.message);
+            }
+        };
+
+        window.describeScene = async () => {
+            if (!aiEnabled) {
+                alert('Please enable the AI Muse first');
+                return;
+            }
+
+            const selection = window.getSelection();
+            const context = selection.toString() || 'current scene';
+            
+            try {
+                const description = await creativeEditor.generateContent(
+                    `Write a vivid scene description for: "${context}" in ${currentGenre} genre with ${currentMood} mood`
+                );
+                alert('Scene description would be added');
+            } catch (error) {
+                alert('Error describing scene: ' + error.message);
+            }
+        };
+
+        window.createCharacter = async () => {
+            if (!aiEnabled) {
+                alert('Please enable the AI Muse first');
+                return;
+            }
+
+            try {
+                const character = await creativeEditor.generateContent(
+                    `Create an interesting character for a ${currentGenre} story with ${currentMood} elements`
+                );
+                alert('New character would be created and described');
+            } catch (error) {
+                alert('Error creating character: ' + error.message);
+            }
+        };
+
+        window.addTwist = async () => {
+            if (!aiEnabled) {
+                alert('Please enable the AI Muse first');
+                return;
+            }
+
+            const currentText = creativeEditor.getText();
+            
+            try {
+                const twist = await creativeEditor.generateContent(
+                    `Suggest a plot twist for this ${currentGenre} story: "${currentText.slice(-300)}"`
+                );
+                alert('Plot twist suggestion would be provided');
+            } catch (error) {
+                alert('Error generating plot twist: ' + error.message);
+            }
+        };
+
+        window.improveStyle = () => {
+            if (!aiEnabled) {
+                alert('Please enable the AI Muse first');
+                return;
+            }
+
+            const selection = window.getSelection();
+            if (selection.toString()) {
+                alert('Selected text would be improved for better style and flow');
+            } else {
+                alert('Please select some text to improve');
+            }
+        };
+
+        // Update writing statistics
+        function updateWritingStats(content) {
+            const text = content.replace(/<[^>]*>/g, '');
+            const wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
+            const charCount = text.length;
+            const readingTime = Math.ceil(wordCount / 200);
+
+            document.getElementById('word-count').textContent = wordCount;
+            document.getElementById('char-count').textContent = charCount;
+            document.getElementById('reading-time').textContent = `${readingTime} min`;
+        }
+
+        // Story management
+        window.saveStory = () => {
+            const content = creativeEditor ? creativeEditor.getContent() : '';
+            console.log('Story saved:', content.substring(0, 100) + '...');
+            alert('💾 Your story has been saved to your creative portfolio');
+        };
+
+        window.exportStory = () => {
+            const content = creativeEditor ? creativeEditor.getContent() : '';
+            if (content.length < 100) {
+                alert('Write more content before exporting');
+                return;
+            }
+            alert('📤 Story exported as PDF and DOCX formats');
+        };
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeCreativeEditor();
+        });
+    </script>
+</body>
+</html>

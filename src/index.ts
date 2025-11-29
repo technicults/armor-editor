@@ -4009,6 +4009,43 @@ export class ArmorEditor {
   showWorkflowDashboard() {
     this.workflowSystem?.showWorkflowDashboard();
   }
+
+  // Enterprise Security Methods
+  async encryptContent(content: string): Promise<string> {
+    return this.encryptionSystem?.encryptContent(content) || content;
+  }
+
+  async decryptContent(encryptedContent: string): Promise<string> {
+    return this.encryptionSystem?.decryptContent(encryptedContent) || encryptedContent;
+  }
+
+  // Voice Comments Methods
+  startVoiceRecording(): void {
+    this.voiceComments?.startRecording();
+  }
+
+  stopVoiceRecording(): void {
+    this.voiceComments?.stopRecording();
+  }
+
+  // Video Integration Methods
+  async startVideoCall(): Promise<void> {
+    await this.videoIntegration?.startVideoCall();
+  }
+
+  endVideoCall(): void {
+    this.videoIntegration?.endVideoCall();
+  }
+
+  // SSO Integration Methods
+  getCurrentUser(): any {
+    return this.ssoIntegration?.getCurrentUser();
+  }
+
+  // Media Editor Methods
+  async editImage(imageUrl: string): Promise<void> {
+    await this.completeMediaEditor?.editImage(imageUrl);
+  }
 }
 
 // Auto-initialization for data attributes (SSR-safe)

@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArmorEditor - React Integration Example</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .demo-container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            min-height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚛️ ArmorEditor + React Integration</h1>
+        <p>Complete React integration examples with hooks, components, and TypeScript</p>
+    </div>
+
+    <div class="demo-container">
+        <h3>🎯 Live React Demo</h3>
+        <p>This example shows ArmorEditor integrated with React using hooks and modern patterns.</p>
+        
+        <div id="react-app"></div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <h4>Word Count</h4>
+                <div id="word-count">0</div>
+            </div>
+            <div class="stat-card">
+                <h4>Character Count</h4>
+                <div id="char-count">0</div>
+            </div>
+            <div class="stat-card">
+                <h4>Save Status</h4>
+                <div id="save-status">Ready</div>
+            </div>
+            <div class="stat-card">
+                <h4>AI Status</h4>
+                <div id="ai-status">Disabled</div>
+            </div>
+        </div>
+
+        <div>
+            <button class="btn" onclick="getEditorContent()">Get Content</button>
+            <button class="btn" onclick="setEditorContent()">Set Sample Content</button>
+            <button class="btn" onclick="exportToPDF()">Export PDF</button>
+            <button class="btn" onclick="toggleReadOnly()">Toggle Read-Only</button>
+        </div>
+
+        <div class="output" id="content-output">
+            Content will appear here...
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>📝 React Hook Implementation</h3>
+        <p>Here's how to use ArmorEditor with React hooks:</p>
+        
+        <div class="code-block">
+import { useEffect, useRef, useState } from 'react';
+import { ArmorEditor } from 'armor-editor';
+
+function useArmorEditor(options = {}) {
+  const editorRef = useRef();
+  const [editor, setEditor] = useState(null);
+  const [content, setContent] = useState('');
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    if (editorRef.current) {
+      const editorInstance = new ArmorEditor({
+        container: editorRef.current,
+        onChange: (newContent) => setContent(newContent),
+        onReady: () => setIsReady(true),
+        ...options
+      });
+
+      setEditor(editorInstance);
+      
+      return () => editorInstance.destroy();
+    }
+  }, []);
+
+  return { editorRef, editor, content, isReady };
+}
+
+// Usage in component
+function BlogEditor() {
+  const { editorRef, editor, content, isReady } = useArmorEditor({
+    height: '400px',
+    ai: { enabled: true },
+    collaboration: { enabled: true }
+  });
+
+  return (
+    &lt;div&gt;
+      {!isReady && &lt;div&gt;Loading editor...&lt;/div&gt;}
+      &lt;div ref={editorRef}&gt;&lt;/div&gt;
+      &lt;div&gt;Words: {content.split(' ').length}&lt;/div&gt;
+    &lt;/div&gt;
+  );
+}
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>🏗️ Advanced React Component</h3>
+        <p>Complete React component with all features:</p>
+        
+        <div class="code-block">
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { ArmorEditor } from 'armor-editor';
+
+interface BlogEditorProps {
+  postId?: string;
+  initialContent?: string;
+  onSave?: (content: string) => void;
+  onPublish?: (content: string) => void;
+}
+
+const BlogEditor: React.FC&lt;BlogEditorProps&gt; = ({
+  postId,
+  initialContent = '',
+  onSave,
+  onPublish
+}) =&gt; {
+  const editorRef = useRef&lt;HTMLDivElement&gt;(null);
+  const [editor, setEditor] = useState&lt;ArmorEditor | null&gt;(null);
+  const [content, setContent] = useState(initialContent);
+  const [title, setTitle] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [wordCount, setWordCount] = useState(0);
+
+  const handleSave = useCallback(async () =&gt; {
+    setSaving(true);
+    try {
+      await onSave?.(content);
+    } finally {
+      setSaving(false);
+    }
+  }, [content, onSave]);
+
+  useEffect(() =&gt; {
+    if (editorRef.current) {
+      const editorInstance = new ArmorEditor({
+        container: editorRef.current,
+        height: '500px',
+        
+        // AI Configuration
+        ai: {
+          enabled: true,
+          providers: {
+            openai: {
+              apiKey: process.env.REACT_APP_OPENAI_API_KEY,
+              defaultModel: 'gpt-4'
+            }
+          }
+        },
+        
+        // Auto-save
+        autoSave: {
+          interval: 30000,
+          callback: handleSave
+        },
+        
+        // Collaboration
+        collaboration: {
+          channelId: `post-${postId}`,
+          userId: 'current-user-id',
+          userName: 'Current User'
+        },
+        
+        // Event handlers
+        onChange: (newContent) =&gt; {
+          setContent(newContent);
+          setWordCount(newContent.split(' ').length);
+        },
+        
+        onReady: () =&gt; {
+          if (initialContent) {
+            editorInstance.setContent(initialContent);
+          }
+        }
+      });
+
+      setEditor(editorInstance);
+      
+      return () =&gt; editorInstance.destroy();
+    }
+  }, [postId, initialContent, handleSave]);
+
+  return (
+    &lt;div className="blog-editor"&gt;
+      &lt;input
+        type="text"
+        value={title}
+        onChange={(e) =&gt; setTitle(e.target.value)}
+        placeholder="Blog post title..."
+        className="title-input"
+      /&gt;
+      
+      &lt;div ref={editorRef} /&gt;
+      
+      &lt;div className="editor-footer"&gt;
+        &lt;div className="stats"&gt;
+          Words: {wordCount} | Characters: {content.length}
+        &lt;/div&gt;
+        
+        &lt;div className="actions"&gt;
+          &lt;button onClick={handleSave} disabled={saving}&gt;
+            {saving ? 'Saving...' : 'Save Draft'}
+          &lt;/button&gt;
+          &lt;button onClick={() =&gt; onPublish?.(content)}&gt;
+            Publish
+          &lt;/button&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  );
+};
+
+export default BlogEditor;
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h3>🎨 Next.js Integration</h3>
+        <p>Server-side rendering with Next.js:</p>
+        
+        <div class="code-block">
+// pages/editor.tsx (Pages Router)
+import dynamic from 'next/dynamic';
+import { useState } from 'react';
+
+// Dynamic import to avoid SSR issues
+const ArmorEditor = dynamic(
+  () =&gt; import('../components/ArmorEditor'),
+  { 
+    ssr: false,
+    loading: () =&gt; &lt;div&gt;Loading editor...&lt;/div&gt;
+  }
+);
+
+export default function EditorPage() {
+  const [content, setContent] = useState('');
+
+  return (
+    &lt;div&gt;
+      &lt;h1&gt;My Blog Editor&lt;/h1&gt;
+      &lt;ArmorEditor
+        initialContent={content}
+        onSave={(content) =&gt; setContent(content)}
+      /&gt;
+    &lt;/div&gt;
+  );
+}
+
+// app/editor/page.tsx (App Router)
+'use client';
+
+import { ArmorEditor } from 'armor-editor';
+import { useEffect, useRef, useState } from 'react';
+
+export default function EditorPage() {
+  const editorRef = useRef(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() =&gt; {
+    setMounted(true);
+  }, []);
+
+  useEffect(() =&gt; {
+    if (mounted && editorRef.current) {
+      const editor = new ArmorEditor({
+        container: editorRef.current,
+        height: '500px'
+      });
+      
+      return () =&gt; editor.destroy();
+    }
+  }, [mounted]);
+
+  if (!mounted) return &lt;div&gt;Loading...&lt;/div&gt;;
+
+  return &lt;div ref={editorRef} /&gt;;
+}
+        </div>
+    </div>
+
+    <!-- React and Babel for in-browser JSX -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // React Hook for ArmorEditor
+        function useArmorEditor(options = {}) {
+            const editorRef = useRef();
+            const [editor, setEditor] = useState(null);
+            const [content, setContent] = useState('');
+            const [isReady, setIsReady] = useState(false);
+            const [wordCount, setWordCount] = useState(0);
+
+            useEffect(() => {
+                if (editorRef.current) {
+                    // Dynamic import for ArmorEditor
+                    import('https://unpkg.com/armor-editor@latest/dist/index.esm.js')
+                        .then(({ ArmorEditor }) => {
+                            const editorInstance = new ArmorEditor({
+                                container: editorRef.current,
+                                onChange: (newContent) => {
+                                    setContent(newContent);
+                                    setWordCount(newContent.split(' ').filter(word => word.length > 0).length);
+                                    
+                                    // Update stats
+                                    document.getElementById('word-count').textContent = newContent.split(' ').filter(word => word.length > 0).length;
+                                    document.getElementById('char-count').textContent = newContent.length;
+                                },
+                                onReady: () => {
+                                    setIsReady(true);
+                                    document.getElementById('save-status').textContent = 'Ready';
+                                },
+                                ...options
+                            });
+
+                            setEditor(editorInstance);
+                            
+                            // Set initial content
+                            setTimeout(() => {
+                                editorInstance.setContent(`
+                                    <h2>Welcome to ArmorEditor + React! 🎉</h2>
+                                    <p>This is a live example of ArmorEditor integrated with React.</p>
+                                    <p><strong>Features demonstrated:</strong></p>
+                                    <ul>
+                                        <li>React hooks integration</li>
+                                        <li>Real-time content updates</li>
+                                        <li>Word and character counting</li>
+                                        <li>Auto-save functionality</li>
+                                        <li>Export capabilities</li>
+                                    </ul>
+                                    <p><em>Try editing this content to see the stats update in real-time!</em></p>
+                                `);
+                            }, 100);
+                        });
+                }
+
+                return () => {
+                    if (editor) {
+                        editor.destroy();
+                    }
+                };
+            }, []);
+
+            return { editorRef, editor, content, isReady, wordCount };
+        }
+
+        // Main React Component
+        function BlogEditor() {
+            const { editorRef, editor, content, isReady } = useArmorEditor({
+                height: '400px',
+                toolbar: [
+                    'bold', 'italic', 'underline', '|',
+                    'fontSize', 'textColor', '|',
+                    'alignLeft', 'alignCenter', 'alignRight', '|',
+                    'orderedList', 'unorderedList', '|',
+                    'link', 'image', 'blockquote'
+                ],
+                autoSave: {
+                    interval: 10000, // 10 seconds for demo
+                    callback: (content) => {
+                        document.getElementById('save-status').textContent = 'Auto-saved';
+                        setTimeout(() => {
+                            document.getElementById('save-status').textContent = 'Ready';
+                        }, 2000);
+                    }
+                }
+            });
+
+            // Expose functions globally for buttons
+            useEffect(() => {
+                window.reactEditor = editor;
+                window.reactContent = content;
+            }, [editor, content]);
+
+            return (
+                <div>
+                    {!isReady && (
+                        <div style={{
+                            padding: '20px',
+                            textAlign: 'center',
+                            background: '#f8f9fa',
+                            borderRadius: '8px',
+                            margin: '10px 0'
+                        }}>
+                            Loading ArmorEditor...
+                        </div>
+                    )}
+                    <div ref={editorRef} style={{ opacity: isReady ? 1 : 0.5 }}></div>
+                </div>
+            );
+        }
+
+        // Render React component
+        ReactDOM.render(<BlogEditor />, document.getElementById('react-app'));
+
+        // Global functions for buttons
+        window.getEditorContent = () => {
+            if (window.reactEditor) {
+                const content = window.reactEditor.getContent();
+                document.getElementById('content-output').innerHTML = `<strong>HTML Content:</strong><br><pre>${content}</pre>`;
+            }
+        };
+
+        window.setEditorContent = () => {
+            if (window.reactEditor) {
+                window.reactEditor.setContent(`
+                    <h3>Sample Blog Post</h3>
+                    <p>This is sample content set programmatically from React.</p>
+                    <blockquote>
+                        "ArmorEditor makes rich text editing in React incredibly simple and powerful."
+                    </blockquote>
+                    <p>Features include:</p>
+                    <ol>
+                        <li><strong>Easy integration</strong> with React hooks</li>
+                        <li><strong>Real-time updates</strong> and state management</li>
+                        <li><strong>TypeScript support</strong> for better development</li>
+                        <li><strong>SSR compatibility</strong> with Next.js</li>
+                    </ol>
+                `);
+            }
+        };
+
+        window.exportToPDF = () => {
+            if (window.reactEditor) {
+                // Simulate PDF export
+                alert('📄 PDF export functionality would be implemented here');
+                document.getElementById('save-status').textContent = 'Exported';
+                setTimeout(() => {
+                    document.getElementById('save-status').textContent = 'Ready';
+                }, 2000);
+            }
+        };
+
+        window.toggleReadOnly = () => {
+            if (window.reactEditor) {
+                const isReadOnly = window.reactEditor.isReadOnly();
+                window.reactEditor.setReadOnly(!isReadOnly);
+                document.getElementById('save-status').textContent = isReadOnly ? 'Editable' : 'Read-Only';
+            }
+        };
+
+        // Simulate AI status
+        setTimeout(() => {
+            document.getElementById('ai-status').textContent = 'Ready';
+        }, 2000);
+    </script>
+</body>
+</html>
