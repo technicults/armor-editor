@@ -284,14 +284,14 @@ export class CompleteExportImport {
       .replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*')
       .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
       .replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*>/gi, '![$2]($1)')
-      .replace(/<ul[^>]*>(.*?)<\/ul>/gis, (match, content) => {
+      .replace(/<ul[^>]*>(.*?)<\/ul>/gi, (match, content) => {
         return content.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n') + '\n';
       })
-      .replace(/<ol[^>]*>(.*?)<\/ol>/gis, (match, content) => {
+      .replace(/<ol[^>]*>(.*?)<\/ol>/gi, (match, content) => {
         let counter = 1;
         return content.replace(/<li[^>]*>(.*?)<\/li>/gi, () => `${counter++}. $1\n`) + '\n';
       })
-      .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gis, '> $1\n\n')
+      .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '> $1\n\n')
       .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
       .replace(/<pre[^>]*>(.*?)<\/pre>/gis, '```\n$1\n```\n\n')
       .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')

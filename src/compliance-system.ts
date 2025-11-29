@@ -192,11 +192,13 @@ export class ComplianceSystem {
     );
 
     // Clean up consent records
-    for (const [id, record] of this.consentRecords.entries()) {
+    const entriesToDelete: string[] = [];
+    this.consentRecords.forEach((record, id) => {
       if (record.timestamp < cutoffDate) {
-        this.consentRecords.delete(id);
+        entriesToDelete.push(id);
       }
-    }
+    });
+    entriesToDelete.forEach(id => this.consentRecords.delete(id));
   }
 
   private addGDPRControls() {
@@ -340,9 +342,9 @@ export class ComplianceSystem {
   getConsentStatus(): Record<string, boolean> {
     const status: Record<string, boolean> = {};
     
-    for (const [, record] of this.consentRecords.entries()) {
+    this.consentRecords.forEach((record) => {
       status[record.type] = record.granted;
-    }
+    });
     
     return status;
   }

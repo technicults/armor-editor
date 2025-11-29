@@ -115,7 +115,8 @@ export class EncryptionSystem {
     
     try {
       const exported = await window.crypto.subtle.exportKey('spki', this.keyPair.publicKey);
-      return btoa(String.fromCharCode(...new Uint8Array(exported)));
+      const uint8Array = new Uint8Array(exported);
+      return btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
     } catch (error) {
       console.error('Failed to export public key:', error);
       return '';

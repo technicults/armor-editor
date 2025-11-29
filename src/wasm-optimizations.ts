@@ -34,7 +34,7 @@ export class WasmOptimizations {
       const wasmModule = await WebAssembly.instantiate(wasmCode);
       this.wasmModule = wasmModule.instance.exports;
       
-      console.log('WebAssembly module loaded successfully');
+      // WebAssembly module loaded successfully
     } catch (error) {
       console.warn('Failed to load WASM module, using fallback:', error);
       this.setupJavaScriptFallback();

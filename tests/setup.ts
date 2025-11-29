@@ -1,5 +1,4 @@
-// Jest setup file
-import 'jest-dom/extend-expect';
+// Jest setup file - simplified for ES modules compatibility
 
 // Mock DOM APIs that might not be available in jsdom
 Object.defineProperty(window, 'getSelection', {
