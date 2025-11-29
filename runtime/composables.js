@@ -25,6 +25,27 @@ export const useArmorEditor = (options = {}) => {
           isReady.value = true
           options.onReady?.()
         },
+        // Enterprise Security
+        encryption: options.encryption,
+        sso: options.sso,
+        compliance: options.compliance,
+        permissions: options.permissions,
+        
+        // Advanced Media
+        voiceComments: options.voiceComments,
+        videoIntegration: options.videoIntegration,
+        mediaEditor: options.mediaEditor,
+        
+        // Next-Gen Architecture
+        webComponents: options.webComponents,
+        localAI: options.localAI,
+        wasm: options.wasm,
+        
+        // Workflow Management
+        workflow: options.workflow,
+        versioning: options.versioning,
+        
+        // All other options
         ...options
       })
 
@@ -83,6 +104,48 @@ export const useArmorEditor = (options = {}) => {
     }
   }
 
+  // Enterprise methods
+  const encryptContent = async (content) => {
+    try {
+      return await editor.value?.encryptContent(content)
+    } catch (error) {
+      console.warn('Failed to encrypt content:', error)
+      return content
+    }
+  }
+
+  const startVoiceRecording = () => {
+    try {
+      editor.value?.startVoiceRecording()
+    } catch (error) {
+      console.warn('Failed to start voice recording:', error)
+    }
+  }
+
+  const startVideoCall = (participants) => {
+    try {
+      return editor.value?.startVideoCall(participants)
+    } catch (error) {
+      console.warn('Failed to start video call:', error)
+    }
+  }
+
+  const submitForApproval = (stage) => {
+    try {
+      return editor.value?.submitForApproval(stage)
+    } catch (error) {
+      console.warn('Failed to submit for approval:', error)
+    }
+  }
+
+  const createBranch = (name) => {
+    try {
+      return editor.value?.createBranch(name)
+    } catch (error) {
+      console.warn('Failed to create branch:', error)
+    }
+  }
+
   onMounted(() => {
     initEditor()
     
@@ -107,6 +170,12 @@ export const useArmorEditor = (options = {}) => {
     setContent,
     getContent,
     focus,
-    initEditor
+    initEditor,
+    // Enterprise methods
+    encryptContent,
+    startVoiceRecording,
+    startVideoCall,
+    submitForApproval,
+    createBranch
   }
 }

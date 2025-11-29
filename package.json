@@ -10,7 +10,6 @@
     "dist",
     "nuxt.js",
     "runtime",
-    "module.d.ts",
     "README.md",
     "LICENSE",
     "CHANGELOG.md",

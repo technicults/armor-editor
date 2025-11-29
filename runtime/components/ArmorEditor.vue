@@ -27,10 +27,13 @@ const props = defineProps({
     type: String,
     default: '300px'
   },
+  width: {
+    type: String,
+    default: '100%'
+  },
   theme: {
     type: String,
-    default: 'light',
-    validator: (value) => ['light', 'dark'].includes(value)
+    default: 'light'
   },
   placeholder: {
     type: String,
@@ -40,6 +43,10 @@ const props = defineProps({
     type: [Boolean, Array],
     default: true
   },
+  readOnly: {
+    type: Boolean,
+    default: false
+  },
   spellCheck: {
     type: Boolean,
     default: false
@@ -48,23 +55,71 @@ const props = defineProps({
     type: Object,
     default: null
   },
-  trackChanges: {
-    type: Boolean,
-    default: false
-  },
-  comments: {
-    type: Boolean,
-    default: false
-  },
-  wordCount: {
-    type: Boolean,
-    default: false
+  ai: {
+    type: Object,
+    default: null
   },
   autoSave: {
     type: Object,
     default: null
   },
-  mentions: {
+  mobile: {
+    type: Object,
+    default: null
+  },
+  analytics: {
+    type: Object,
+    default: null
+  },
+  // Enterprise Security
+  encryption: {
+    type: Object,
+    default: null
+  },
+  sso: {
+    type: Object,
+    default: null
+  },
+  compliance: {
+    type: Object,
+    default: null
+  },
+  permissions: {
+    type: Object,
+    default: null
+  },
+  // Advanced Media
+  voiceComments: {
+    type: Object,
+    default: null
+  },
+  videoIntegration: {
+    type: Object,
+    default: null
+  },
+  mediaEditor: {
+    type: Object,
+    default: null
+  },
+  // Next-Gen Architecture
+  webComponents: {
+    type: Object,
+    default: null
+  },
+  localAI: {
+    type: Object,
+    default: null
+  },
+  wasm: {
+    type: Object,
+    default: null
+  },
+  // Workflow Management
+  workflow: {
+    type: Object,
+    default: null
+  },
+  versioning: {
     type: Object,
     default: null
   },
@@ -76,57 +131,76 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'ready', 'change'])
 
-const {
-  editorRef,
-  editor,
-  content,
-  isReady,
-  setContent,
+const { 
+  editorRef, 
+  editor, 
+  content, 
+  isReady, 
+  setContent, 
   getContent,
-  focus
+  encryptContent,
+  startVoiceRecording,
+  startVideoCall,
+  submitForApproval,
+  createBranch
 } = useArmorEditor({
   height: props.height,
+  width: props.width,
   theme: props.theme,
   placeholder: props.placeholder,
   toolbar: props.toolbar,
+  readOnly: props.readOnly,
   spellCheck: props.spellCheck,
   collaboration: props.collaboration,
-  trackChanges: props.trackChanges,
-  comments: props.comments,
-  wordCount: props.wordCount,
+  ai: props.ai,
   autoSave: props.autoSave,
-  mentions: props.mentions,
+  mobile: props.mobile,
+  analytics: props.analytics,
+  encryption: props.encryption,
+  sso: props.sso,
+  compliance: props.compliance,
+  permissions: props.permissions,
+  voiceComments: props.voiceComments,
+  videoIntegration: props.videoIntegration,
+  mediaEditor: props.mediaEditor,
+  webComponents: props.webComponents,
+  localAI: props.localAI,
+  wasm: props.wasm,
+  workflow: props.workflow,
+  versioning: props.versioning,
   onChange: (newContent) => {
     emit('update:modelValue', newContent)
     emit('change', newContent)
   },
   onReady: () => {
-    if (props.modelValue && !content.value) {
-      // Only set initial content if editor is empty
-      setContent(props.modelValue)
-    }
     emit('ready', editor.value)
   }
 })
 
 // Watch for external content changes
 watch(() => props.modelValue, (newValue) => {
-  if (newValue !== content.value && editor.value) {
-    // Only update if editor is ready and content is different
-    const currentContent = getContent()
-    if (newValue !== currentContent) {
-      setContent(newValue)
-    }
+  if (newValue !== content.value) {
+    setContent(newValue)
   }
-}, { immediate: false })
+})
 
-// Expose methods for template refs
+// Set initial content
+watch(isReady, (ready) => {
+  if (ready && props.modelValue) {
+    setContent(props.modelValue)
+  }
+})
+
+// Expose enterprise methods
 defineExpose({
   editor,
   setContent,
   getContent,
-  focus,
-  isReady
+  encryptContent,
+  startVoiceRecording,
+  startVideoCall,
+  submitForApproval,
+  createBranch
 })
 </script>
 
@@ -135,8 +209,8 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100px;
+  padding: 2rem;
   color: #666;
-  font-style: italic;
+  font-size: 14px;
 }
 </style>
