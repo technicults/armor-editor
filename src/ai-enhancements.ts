@@ -38,6 +38,8 @@ export class AIEnhancements {
   private config: AIConfig;
   private suggestionBox: HTMLElement | null = null;
   private templates: ContentTemplate[] = [];
+  private inputListener?: () => void;
+  private keydownListener?: (e: KeyboardEvent) => void;
 
   constructor(editor: any, config: AIConfig) {
     this.editor = editor;
@@ -90,12 +92,16 @@ export class AIEnhancements {
   }
 
   private async checkForSuggestions() {
-    const content = this.editor.getText();
-    if (content.length < 10) return;
+    try {
+      const content = this.editor.getText();
+      if (content.length < 10) return;
 
-    const suggestions = await this.getAISuggestions(content);
-    if (suggestions.length > 0) {
-      this.showSuggestions(suggestions);
+      const suggestions = await this.getAISuggestions(content);
+      if (suggestions.length > 0) {
+        this.showSuggestions(suggestions);
+      }
+    } catch (error) {
+      console.error('Failed to check for AI suggestions:', error);
     }
   }
 
@@ -375,5 +381,15 @@ export class AIEnhancements {
 
   destroy() {
     this.hideSuggestions();
+    
+    // Remove event listeners to prevent memory leaks
+    if (this.editor?.editor) {
+      if (this.inputListener) {
+        this.editor.editor.removeEventListener('input', this.inputListener);
+      }
+      if (this.keydownListener) {
+        this.editor.editor.removeEventListener('keydown', this.keydownListener);
+      }
+    }
   }
 }

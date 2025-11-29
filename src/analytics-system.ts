@@ -130,8 +130,6 @@ export class AnalyticsSystem {
 
     // Store in localStorage for persistence
     this.persistEvents();
-    
-    console.log('Analytics Event:', event);
   }
 
   getMetrics(): AnalyticsMetrics {

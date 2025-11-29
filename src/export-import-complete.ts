@@ -293,7 +293,7 @@ export class CompleteExportImport {
       })
       .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '> $1\n\n')
       .replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`')
-      .replace(/<pre[^>]*>(.*?)<\/pre>/gis, '```\n$1\n```\n\n')
+      .replace(/<pre[^>]*>(.*?)<\/pre>/gi, '```\n$1\n```\n\n')
       .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
       .replace(/<br[^>]*>/gi, '\n')
       .replace(/<[^>]+>/g, '') // Remove remaining HTML tags
@@ -417,7 +417,7 @@ export class CompleteExportImport {
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
       .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2">')
       .replace(/^- (.*$)/gim, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+      .replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>')
       .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
