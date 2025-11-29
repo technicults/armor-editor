@@ -45,6 +45,25 @@ export interface EditorOptions {
   customFonts?: string[];
   customCSS?: string;
   readOnly?: boolean;
+  mobile?: {
+    enabled?: boolean;
+    collapsibleToolbar?: boolean;
+    touchGestures?: boolean;
+  };
+  performance?: {
+    virtualScrolling?: boolean;
+    lazyLoading?: boolean;
+    chunkSize?: number;
+  };
+  ai?: {
+    enabled?: boolean;
+    apiKey?: string;
+    features?: string[];
+  };
+  analytics?: {
+    enabled?: boolean;
+    trackEvents?: string[];
+  };
 }
 
 export class ArmorEditor {
@@ -70,10 +89,23 @@ export class ArmorEditor {
   private redoStack: string[] = [];
   private maxUndoSteps = 50;
   private lastContent = '';
+  private isMobile = false;
+  private touchStartY = 0;
+  private isVirtualScrolling = false;
+  private chunkSize = 1000;
 
   constructor(options: EditorOptions) {
     // Check for SSR environment
     this.isSSR = typeof window === 'undefined' || typeof document === 'undefined';
+    
+    if (!this.isSSR) {
+      // Detect mobile device
+      this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+      
+      // Set performance options
+      this.isVirtualScrolling = options.performance?.virtualScrolling || false;
+      this.chunkSize = options.performance?.chunkSize || 1000;
+    }
     
     if (this.isSSR) {
       console.warn('ArmorEditor: SSR detected. Editor will initialize on client-side.');
@@ -206,6 +238,16 @@ export class ArmorEditor {
     // Initialize undo system
     this.lastContent = this.getContent();
     
+    // Initialize AI assistant
+    this.initializeAI();
+    
+    // Track initialization
+    this.trackEvent('editor_initialized', {
+      mobile: this.isMobile,
+      readOnly: this.options.readOnly,
+      virtualScrolling: this.isVirtualScrolling
+    });
+    
     // Expose methods globally for track changes
     (window as any).armorEditor = {
       acceptChange: (id: string) => this.acceptChange(id),
@@ -261,15 +303,45 @@ export class ArmorEditor {
     const isDark = this.options.theme === 'dark';
     this.toolbar = document.createElement('div');
     this.toolbar.className = 'armor-editor-toolbar';
+    
+    // Mobile-responsive toolbar
+    const isMobileToolbar = this.isMobile && this.options.mobile?.collapsibleToolbar !== false;
+    
     this.toolbar.style.cssText = `
       border-bottom: 1px solid ${isDark ? '#444' : '#ddd'};
       padding: 8px;
       background: ${isDark ? '#333' : '#f9f9f9'};
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: ${isMobileToolbar ? 'wrap' : 'wrap'};
       gap: 4px;
       align-items: center;
+      ${isMobileToolbar ? 'max-height: 60px; overflow: hidden; transition: max-height 0.3s ease;' : ''}
     `;
+    
+    // Add expand/collapse button for mobile
+    if (isMobileToolbar) {
+      const expandBtn = document.createElement('button');
+      expandBtn.innerHTML = '⋯';
+      expandBtn.title = 'More tools';
+      expandBtn.style.cssText = `
+        padding: 8px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 16px;
+        order: 999;
+        margin-left: auto;
+      `;
+      
+      let isExpanded = false;
+      expandBtn.onclick = () => {
+        isExpanded = !isExpanded;
+        this.toolbar.style.maxHeight = isExpanded ? 'none' : '60px';
+        expandBtn.innerHTML = isExpanded ? '×' : '⋯';
+      };
+      
+      this.toolbar.appendChild(expandBtn);
+    }
     
     const toolbarItems = Array.isArray(this.options.toolbar) 
       ? this.options.toolbar 
@@ -312,7 +384,7 @@ export class ArmorEditor {
       image: { icon: icons.image, title: 'Insert Image', action: () => this.showImageDialog() },
       table: { icon: icons.table, title: 'Insert Table', action: () => this.showTableDialog() },
       code: { icon: icons.code, title: 'Code Block', action: () => this.insertCodeBlock() },
-      blockquote: { icon: icons.blockquote, title: 'Blockquote', action: () => this.execCommand('formatBlock', 'blockquote') },
+      blockquote: { icon: icons.blockquote, title: 'Blockquote', action: () => this.insertBlockquote() },
       undo: { icon: icons.undo, title: 'Undo', action: () => this.execCommand('undo') },
       redo: { icon: icons.redo, title: 'Redo', action: () => this.execCommand('redo') },
       removeFormat: { icon: icons.removeFormat, title: 'Clear Format', action: () => this.execCommand('removeFormat') },
@@ -787,9 +859,6 @@ export class ArmorEditor {
     img.style.margin = '10px 0';
     img.style.cursor = 'pointer';
     
-    // Add resize functionality
-    this.makeImageResizable(img);
-    
     this.editor.focus();
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
@@ -807,11 +876,21 @@ export class ArmorEditor {
       this.editor.appendChild(img);
     }
     
+    // Add resize functionality after image is in DOM
+    setTimeout(() => {
+      this.makeImageResizable(img);
+    }, 100);
+    
     // Trigger change event
     this.options.onChange?.(this.getContent());
   }
 
   private makeImageResizable(img: HTMLImageElement) {
+    // Skip if already wrapped
+    if (img.parentElement?.classList.contains('resize-wrapper')) {
+      return;
+    }
+    
     let isResizing = false;
     let startX = 0;
     let startWidth = 0;
@@ -823,6 +902,7 @@ export class ArmorEditor {
       position: relative;
       display: inline-block;
       margin: 10px 0;
+      max-width: 100%;
     `;
     
     // Replace image with wrapper
@@ -831,20 +911,26 @@ export class ArmorEditor {
       wrapper.appendChild(img);
     }
     
+    // Reset image styles for wrapper
+    img.style.display = 'block';
+    img.style.margin = '0';
+    
     // Create resize handle
     const handle = document.createElement('div');
     handle.className = 'resize-handle';
     handle.style.cssText = `
       position: absolute;
-      width: 10px;
-      height: 10px;
+      width: 12px;
+      height: 12px;
       background: #007cba;
-      bottom: -5px;
-      right: -5px;
+      bottom: -6px;
+      right: -6px;
       cursor: se-resize;
-      border: 1px solid #fff;
+      border: 2px solid #fff;
+      border-radius: 50%;
       z-index: 1000;
       display: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     `;
     
     wrapper.appendChild(handle);
@@ -869,16 +955,20 @@ export class ArmorEditor {
       startX = e.clientX;
       startWidth = parseInt(window.getComputedStyle(img).width, 10);
       
+      document.body.style.cursor = 'se-resize';
+      
       const handleResize = (e: MouseEvent) => {
         if (!isResizing) return;
         
         const width = startWidth + e.clientX - startX;
-        img.style.width = Math.max(50, Math.min(width, 800)) + 'px';
+        const newWidth = Math.max(50, Math.min(width, 800));
+        img.style.width = newWidth + 'px';
         img.style.height = 'auto';
       };
       
       const stopResize = () => {
         isResizing = false;
+        document.body.style.cursor = '';
         handle.style.display = 'none';
         document.removeEventListener('mousemove', handleResize);
         document.removeEventListener('mouseup', stopResize);
@@ -953,6 +1043,69 @@ export class ArmorEditor {
       range.insertNode(table);
       range.collapse(false);
     }
+  }
+
+  private insertBlockquote() {
+    this.editor.focus();
+    
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      
+      // Check if we're already in a blockquote
+      let currentElement = range.commonAncestorContainer;
+      if (currentElement.nodeType === Node.TEXT_NODE) {
+        currentElement = currentElement.parentElement || currentElement;
+      }
+      
+      const existingBlockquote = (currentElement as Element).closest('blockquote');
+      
+      if (existingBlockquote) {
+        // Remove blockquote - unwrap content
+        const parent = existingBlockquote.parentNode;
+        while (existingBlockquote.firstChild) {
+          parent?.insertBefore(existingBlockquote.firstChild, existingBlockquote);
+        }
+        parent?.removeChild(existingBlockquote);
+      } else {
+        // Add blockquote
+        let content = '';
+        
+        if (selection.isCollapsed) {
+          // No selection - create empty blockquote
+          content = 'Quote text here...';
+        } else {
+          // Use selected content
+          content = selection.toString();
+          range.deleteContents();
+        }
+        
+        const blockquote = document.createElement('blockquote');
+        blockquote.style.cssText = `
+          margin: 16px 0;
+          padding: 12px 20px;
+          border-left: 4px solid #007cba;
+          background: #f8f9fa;
+          font-style: italic;
+          color: #555;
+        `;
+        blockquote.innerHTML = `<p>${content}</p>`;
+        
+        range.insertNode(blockquote);
+        
+        // Position cursor at end of blockquote
+        range.setStartAfter(blockquote);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+    
+    // Track event
+    this.trackEvent('blockquote_inserted');
+    
+    // Trigger change event
+    this.options.onChange?.(this.getContent());
   }
 
   private insertCodeBlock() {
@@ -1548,6 +1701,180 @@ export class ArmorEditor {
     }
   }
 
+  private async initializeAI() {
+    if (!this.options.ai?.enabled || !this.options.ai?.apiKey) return;
+    
+    // Add AI assistant button to toolbar
+    if (this.toolbar) {
+      const aiBtn = document.createElement('button');
+      aiBtn.innerHTML = '🤖';
+      aiBtn.title = 'AI Writing Assistant';
+      aiBtn.style.cssText = `
+        padding: 8px;
+        border: 1px solid #ccc;
+        background: #fff;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 8px;
+      `;
+      
+      aiBtn.onclick = () => this.showAIAssistant();
+      this.toolbar.appendChild(aiBtn);
+    }
+  }
+
+  private showAIAssistant() {
+    const selection = window.getSelection();
+    const selectedText = selection?.toString() || '';
+    
+    const aiDialog = document.createElement('div');
+    aiDialog.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 1001;
+      min-width: 400px;
+      max-width: 600px;
+    `;
+    
+    aiDialog.innerHTML = `
+      <h3>AI Writing Assistant</h3>
+      <div style="margin: 15px 0;">
+        <label>Selected text:</label>
+        <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 5px 0;">
+          ${selectedText || 'No text selected'}
+        </div>
+      </div>
+      <div style="margin: 15px 0;">
+        <label>AI Action:</label>
+        <select id="ai-action" style="width: 100%; padding: 8px; margin: 5px 0;">
+          <option value="improve">Improve writing</option>
+          <option value="grammar">Fix grammar</option>
+          <option value="tone">Change tone</option>
+          <option value="summarize">Summarize</option>
+          <option value="expand">Expand content</option>
+        </select>
+      </div>
+      <div style="text-align: right; margin-top: 15px;">
+        <button id="ai-cancel" style="margin-right: 8px; padding: 8px 16px;">Cancel</button>
+        <button id="ai-process" style="padding: 8px 16px; background: #007cba; color: white; border: none; border-radius: 4px;">Process</button>
+      </div>
+    `;
+    
+    document.body.appendChild(aiDialog);
+    
+    const cancelBtn = aiDialog.querySelector('#ai-cancel') as HTMLButtonElement;
+    const processBtn = aiDialog.querySelector('#ai-process') as HTMLButtonElement;
+    const actionSelect = aiDialog.querySelector('#ai-action') as HTMLSelectElement;
+    
+    cancelBtn.onclick = () => aiDialog.remove();
+    processBtn.onclick = () => {
+      this.processAIRequest(selectedText, actionSelect.value);
+      aiDialog.remove();
+    };
+  }
+
+  private async processAIRequest(text: string, action: string) {
+    if (!text) {
+      alert('Please select some text first');
+      return;
+    }
+    
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.options.ai?.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [{
+            role: 'user',
+            content: `${this.getAIPrompt(action)}: "${text}"`
+          }],
+          max_tokens: 500
+        })
+      });
+      
+      const data = await response.json();
+      const improvedText = data.choices[0]?.message?.content;
+      
+      if (improvedText) {
+        this.replaceSelectedText(improvedText);
+      }
+    } catch (error) {
+      console.error('AI request failed:', error);
+      alert('AI processing failed. Please try again.');
+    }
+  }
+
+  private getAIPrompt(action: string): string {
+    const prompts = {
+      improve: 'Improve the writing quality of this text',
+      grammar: 'Fix grammar and spelling errors in this text',
+      tone: 'Make this text more professional and clear',
+      summarize: 'Summarize this text concisely',
+      expand: 'Expand this text with more details and examples'
+    };
+    return prompts[action as keyof typeof prompts] || prompts.improve;
+  }
+
+  private replaceSelectedText(newText: string) {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(document.createTextNode(newText));
+      this.options.onChange?.(this.getContent());
+    }
+  }
+  private analytics = {
+    events: [] as Array<{type: string, timestamp: number, data?: any}>,
+    startTime: Date.now(),
+    
+    track: (event: string, data?: any) => {
+      if (this.options.analytics?.enabled) {
+        this.analytics.events.push({
+          type: event,
+          timestamp: Date.now(),
+          data
+        });
+        
+        // Send to analytics service (example)
+        if (typeof window !== 'undefined' && (window as any).gtag) {
+          (window as any).gtag('event', event, {
+            custom_parameter: data
+          });
+        }
+      }
+    },
+    
+    getReport: () => ({
+      sessionDuration: Date.now() - this.analytics.startTime,
+      totalEvents: this.analytics.events.length,
+      events: this.analytics.events,
+      performance: {
+        contentLength: this.getContent().length,
+        wordCount: this.getText().split(/\s+/).length
+      }
+    })
+  };
+
+  private trackEvent(event: string, data?: any) {
+    this.analytics.track(event, data);
+  }
+
+  public getAnalytics() {
+    return this.analytics.getReport();
+  }
+
   private escapeRegex(string: string): string {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
@@ -1734,6 +2061,11 @@ export class ArmorEditor {
   }
 
   private makeVideoResizable(container: HTMLElement) {
+    // Skip if already wrapped
+    if (container.parentElement?.classList.contains('resize-wrapper')) {
+      return;
+    }
+    
     let isResizing = false;
     let startX = 0;
     let startY = 0;
@@ -1747,6 +2079,7 @@ export class ArmorEditor {
       position: relative;
       display: inline-block;
       margin: 10px 0;
+      max-width: 100%;
     `;
     
     // Replace container with wrapper
@@ -1760,15 +2093,17 @@ export class ArmorEditor {
     handle.className = 'resize-handle';
     handle.style.cssText = `
       position: absolute;
-      width: 10px;
-      height: 10px;
+      width: 12px;
+      height: 12px;
       background: #007cba;
-      bottom: -5px;
-      right: -5px;
+      bottom: -6px;
+      right: -6px;
       cursor: se-resize;
-      border: 1px solid #fff;
+      border: 2px solid #fff;
+      border-radius: 50%;
       z-index: 1000;
       display: none;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     `;
     
     wrapper.appendChild(handle);
@@ -1795,18 +2130,25 @@ export class ArmorEditor {
       startWidth = parseInt(window.getComputedStyle(container).width, 10);
       startHeight = parseInt(window.getComputedStyle(container).height, 10);
       
+      document.body.style.cursor = 'se-resize';
+      
       const handleResize = (e: MouseEvent) => {
         if (!isResizing) return;
         
         const width = startWidth + e.clientX - startX;
         const height = startHeight + e.clientY - startY;
         
-        container.style.width = Math.max(200, Math.min(width, 800)) + 'px';
-        container.style.height = Math.max(150, Math.min(height, 600)) + 'px';
+        const newWidth = Math.max(200, Math.min(width, 800));
+        const newHeight = Math.max(150, Math.min(height, 600));
+        
+        container.style.width = newWidth + 'px';
+        container.style.height = newHeight + 'px';
+        container.style.paddingBottom = '0';
       };
       
       const stopResize = () => {
         isResizing = false;
+        document.body.style.cursor = '';
         handle.style.display = 'none';
         document.removeEventListener('mousemove', handleResize);
         document.removeEventListener('mouseup', stopResize);
@@ -2417,6 +2759,9 @@ export class ArmorEditor {
       this.saveUndoState();
     }, 1000); // Save undo state after 1 second of inactivity
     
+    // Track typing events
+    this.trackEvent('typing', { contentLength: this.getContent().length });
+    
     this.options.onChange?.(this.getContent());
     this.updateWordCount();
   };
@@ -2502,9 +2847,32 @@ export class ArmorEditor {
     this.editor.addEventListener('keyup', this.handleKeyUp);
     this.editor.addEventListener('focus', this.handleFocus);
     
+    // Touch events for mobile
+    if (this.isMobile && this.options.mobile?.touchGestures !== false) {
+      this.editor.addEventListener('touchstart', this.handleTouchStart);
+      this.editor.addEventListener('touchmove', this.handleTouchMove);
+      this.editor.addEventListener('touchend', this.handleTouchEnd);
+    }
+    
     // Document selection change for better coverage
     document.addEventListener('selectionchange', this.handleDocumentSelectionChange);
   }
+
+  private handleTouchStart = (e: TouchEvent) => {
+    this.touchStartY = e.touches[0].clientY;
+  };
+
+  private handleTouchMove = (e: TouchEvent) => {
+    // Prevent default scrolling behavior for better control
+    if (Math.abs(e.touches[0].clientY - this.touchStartY) > 10) {
+      e.preventDefault();
+    }
+  };
+
+  private handleTouchEnd = (e: TouchEvent) => {
+    // Handle touch selection
+    setTimeout(() => this.updateFormattingButtonStates(), 100);
+  };
 
   private updateFormattingButtonStates() {
     if (!this.toolbar) return;
@@ -2708,12 +3076,71 @@ export class ArmorEditor {
     
     // Sanitize HTML content before setting
     const sanitizedHtml = this.sanitizeHTML(html);
-    this.editor.innerHTML = sanitizedHtml;
+    
+    // Use virtual scrolling for large content
+    if (this.isVirtualScrolling && sanitizedHtml.length > this.chunkSize) {
+      this.setupVirtualScrolling(sanitizedHtml);
+    } else {
+      this.editor.innerHTML = sanitizedHtml;
+    }
     
     // Make existing images and videos resizable
     this.makeExistingMediaResizable();
     
     this.updateWordCount();
+  }
+
+  private setupVirtualScrolling(content: string) {
+    // Split content into chunks for virtual scrolling
+    const chunks = this.splitContentIntoChunks(content);
+    let visibleChunks = new Set([0, 1, 2]); // Show first 3 chunks initially
+    
+    this.editor.innerHTML = chunks.slice(0, 3).join('');
+    
+    // Add scroll listener for lazy loading
+    this.editor.addEventListener('scroll', () => {
+      const scrollTop = this.editor.scrollTop;
+      const scrollHeight = this.editor.scrollHeight;
+      const clientHeight = this.editor.clientHeight;
+      
+      // Load more chunks when near bottom
+      if (scrollTop + clientHeight > scrollHeight - 1000) {
+        const nextChunk = visibleChunks.size;
+        if (nextChunk < chunks.length) {
+          visibleChunks.add(nextChunk);
+          this.editor.innerHTML += chunks[nextChunk];
+        }
+      }
+    });
+  }
+
+  private splitContentIntoChunks(content: string): string[] {
+    const chunks: string[] = [];
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
+    
+    const elements = Array.from(tempDiv.children);
+    let currentChunk = '';
+    let currentSize = 0;
+    
+    elements.forEach(element => {
+      const elementSize = element.outerHTML.length;
+      
+      if (currentSize + elementSize > this.chunkSize && currentChunk) {
+        chunks.push(currentChunk);
+        currentChunk = element.outerHTML;
+        currentSize = elementSize;
+      } else {
+        currentChunk += element.outerHTML;
+        currentSize += elementSize;
+      }
+    });
+    
+    if (currentChunk) {
+      chunks.push(currentChunk);
+    }
+    
+    return chunks;
   }
 
   private makeExistingMediaResizable() {
@@ -2735,12 +3162,12 @@ export class ArmorEditor {
   }
 
   private sanitizeHTML(html: string): string {
-    // Create a temporary div to parse HTML
+    // Enhanced security with more comprehensive sanitization
     const temp = document.createElement('div');
     temp.innerHTML = html;
     
     // Remove potentially dangerous elements
-    const dangerousElements = ['script', 'iframe', 'object', 'embed', 'form'];
+    const dangerousElements = ['script', 'iframe', 'object', 'embed', 'form', 'input', 'textarea', 'button', 'select', 'option', 'meta', 'link', 'style', 'base'];
     dangerousElements.forEach(tag => {
       const elements = temp.querySelectorAll(tag);
       elements.forEach(el => el.remove());
@@ -2748,21 +3175,33 @@ export class ArmorEditor {
     
     // Remove dangerous attributes from all elements
     const allElements = temp.querySelectorAll('*');
+    const dangerousAttrs = ['onclick', 'onload', 'onerror', 'onmouseover', 'onmouseout', 'onfocus', 'onblur', 'onchange', 'onsubmit', 'onreset', 'onselect', 'onkeydown', 'onkeypress', 'onkeyup'];
+    
     allElements.forEach(el => {
-      const dangerousAttrs = ['onclick', 'onload', 'onerror', 'onmouseover', 'onfocus'];
+      // Remove event handlers
       dangerousAttrs.forEach(attr => {
         if (el.hasAttribute(attr)) {
           el.removeAttribute(attr);
         }
       });
       
-      // Sanitize href attributes
-      if (el.hasAttribute('href')) {
-        const href = el.getAttribute('href') || '';
-        if (href.startsWith('javascript:') || href.startsWith('data:')) {
-          el.removeAttribute('href');
+      // Sanitize href and src attributes
+      ['href', 'src'].forEach(attrName => {
+        if (el.hasAttribute(attrName)) {
+          const attrValue = el.getAttribute(attrName) || '';
+          if (attrValue.startsWith('javascript:') || 
+              attrValue.startsWith('data:') || 
+              attrValue.startsWith('vbscript:')) {
+            el.removeAttribute(attrName);
+          }
         }
-      }
+      });
+    });
+    
+    // Track security events
+    this.trackEvent('content_sanitized', { 
+      originalLength: html.length, 
+      sanitizedLength: temp.innerHTML.length 
     });
     
     return temp.innerHTML;

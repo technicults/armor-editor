@@ -71,11 +71,12 @@ const editor = new ArmorEditor({
 - **Lists & Indentation** - Ordered/unordered lists
 - **Media Support** - Images, links, tables, code blocks
 
-### **Premium Features**
-- **Real-time Collaboration** - Multiple users editing simultaneously
-- **Track Changes** - Accept/reject document modifications
-- **Comments System** - Contextual discussions
-- **AI Spell Check** - Grammar and spelling with suggestions
+### **Advanced Features**
+- **AI Writing Assistant** - Grammar, tone, and content improvement
+- **Mobile Optimization** - Touch gestures, collapsible toolbar
+- **Performance** - Virtual scrolling, lazy loading for large documents
+- **Enhanced Security** - Comprehensive XSS protection, URL sanitization
+- **Analytics** - User interaction tracking, performance monitoring
 - **Auto-save** - Never lose your work
 - **Math Formulas** - LaTeX support
 - **Mentions** - @user tagging
@@ -300,18 +301,37 @@ const editor = new ArmorEditor({
 });
 ```
 
-### Custom Toolbar
+### Advanced Configuration
 ```javascript
 const editor = new ArmorEditor({
   container: '#editor',
-  toolbar: [
-    'bold', 'italic', 'underline', '|',
-    'fontSize', 'textColor', '|',
-    'alignLeft', 'alignCenter', 'alignRight', '|',
-    'orderedList', 'unorderedList', '|',
-    'link', 'image', 'table', '|',
-    'undo', 'redo', 'fullscreen'
-  ]
+  
+  // Mobile Optimization
+  mobile: {
+    enabled: true,
+    collapsibleToolbar: true,
+    touchGestures: true
+  },
+  
+  // Performance Settings
+  performance: {
+    virtualScrolling: true,
+    lazyLoading: true,
+    chunkSize: 1000
+  },
+  
+  // AI Writing Assistant
+  ai: {
+    enabled: true,
+    apiKey: 'your-openai-key',
+    features: ['grammar', 'tone', 'suggestions']
+  },
+  
+  // Analytics & Tracking
+  analytics: {
+    enabled: true,
+    trackEvents: ['typing', 'formatting', 'collaboration']
+  }
 });
 ```
 
