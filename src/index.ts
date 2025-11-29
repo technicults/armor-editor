@@ -65,6 +65,11 @@ export class ArmorEditor {
   private spellCheckEnabled = false;
   private isSSR = false;
 
+  private undoStack: string[] = [];
+  private redoStack: string[] = [];
+  private maxUndoSteps = 50;
+  private lastContent = '';
+
   constructor(options: EditorOptions) {
     // Check for SSR environment
     this.isSSR = typeof window === 'undefined' || typeof document === 'undefined';
@@ -195,6 +200,9 @@ export class ArmorEditor {
     
     // Mark as client-side initialized
     this.isSSR = false;
+    
+    // Initialize undo system
+    this.lastContent = this.getContent();
     
     // Expose methods globally for track changes
     (window as any).armorEditor = {
@@ -2396,9 +2404,17 @@ export class ArmorEditor {
 
   // Bound methods for proper cleanup
   private handleInput = () => {
+    // Save undo state periodically during typing
+    clearTimeout(this.undoTimeout);
+    this.undoTimeout = window.setTimeout(() => {
+      this.saveUndoState();
+    }, 1000); // Save undo state after 1 second of inactivity
+    
     this.options.onChange?.(this.getContent());
     this.updateWordCount();
   };
+
+  private undoTimeout: number | undefined;
 
   private handleKeydown = (e: KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -2574,8 +2590,78 @@ export class ArmorEditor {
     }
   }
 
+  private saveUndoState() {
+    const currentContent = this.getContent();
+    if (currentContent !== this.lastContent) {
+      this.undoStack.push(this.lastContent);
+      if (this.undoStack.length > this.maxUndoSteps) {
+        this.undoStack.shift();
+      }
+      this.redoStack = []; // Clear redo stack when new action is performed
+      this.lastContent = currentContent;
+    }
+  }
+
+  private performUndo() {
+    if (this.undoStack.length > 0) {
+      const currentContent = this.getContent();
+      this.redoStack.push(currentContent);
+      
+      const previousContent = this.undoStack.pop()!;
+      this.lastContent = previousContent;
+      
+      // Temporarily disable onChange to avoid infinite loop
+      const originalOnChange = this.options.onChange;
+      this.options.onChange = undefined;
+      
+      this.setContent(previousContent);
+      
+      // Restore onChange
+      this.options.onChange = originalOnChange;
+      
+      return true;
+    }
+    return false;
+  }
+
+  private performRedo() {
+    if (this.redoStack.length > 0) {
+      const currentContent = this.getContent();
+      this.undoStack.push(currentContent);
+      
+      const nextContent = this.redoStack.pop()!;
+      this.lastContent = nextContent;
+      
+      // Temporarily disable onChange to avoid infinite loop
+      const originalOnChange = this.options.onChange;
+      this.options.onChange = undefined;
+      
+      this.setContent(nextContent);
+      
+      // Restore onChange
+      this.options.onChange = originalOnChange;
+      
+      return true;
+    }
+    return false;
+  }
+
   private execCommand(command: string, value?: string) {
     this.editor.focus();
+    
+    // Handle custom undo/redo
+    if (command === 'undo') {
+      this.performUndo();
+      return;
+    }
+    
+    if (command === 'redo') {
+      this.performRedo();
+      return;
+    }
+    
+    // Save state before executing command (for undo)
+    this.saveUndoState();
     
     // Check if execCommand is available (not in Node.js/JSDOM)
     if (typeof document.execCommand === 'function') {
@@ -2721,6 +2807,11 @@ export class ArmorEditor {
     if (this.selectionTimeout) {
       clearTimeout(this.selectionTimeout);
       this.selectionTimeout = null;
+    }
+    
+    if (this.undoTimeout) {
+      clearTimeout(this.undoTimeout);
+      this.undoTimeout = undefined;
     }
     
     // Remove spell check listener
