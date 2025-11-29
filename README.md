@@ -722,9 +722,8 @@ export async function POST(request) {
 NEXT_PUBLIC_OPENAI_API_KEY=your-openai-api-key
 DATABASE_URL=your-database-url
 ```
-```
 
-### **Nuxt.js (Auto-import)**
+**Nuxt.js (Auto-import)**
 
 #### Step 1: Add Module
 ```javascript
