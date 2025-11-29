@@ -7,13 +7,15 @@
       ref="editorRef" 
       :style="{ 
         opacity: isReady ? 1 : 0,
-        transition: 'opacity 0.3s ease'
+        transition: 'opacity 0.3s ease',
+        minHeight: height
       }"
     ></div>
   </div>
 </template>
 
 <script setup>
+import { watch } from 'vue'
 import { useArmorEditor } from '../composables'
 
 const props = defineProps({

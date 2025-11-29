@@ -11,21 +11,35 @@ export const useArmorEditor = (options = {}) => {
 
     await nextTick()
 
-    // Dynamic import for SSR safety
-    const { ArmorEditor } = await import('armor-editor')
+    try {
+      // Dynamic import for SSR safety
+      const { ArmorEditor } = await import('armor-editor')
 
-    editor.value = new ArmorEditor({
-      container: editorRef.value,
-      onChange: (newContent) => {
-        content.value = newContent
-        options.onChange?.(newContent)
-      },
-      onReady: () => {
-        isReady.value = true
-        options.onReady?.()
-      },
-      ...options
-    })
+      editor.value = new ArmorEditor({
+        container: editorRef.value,
+        onChange: (newContent) => {
+          content.value = newContent
+          options.onChange?.(newContent)
+        },
+        onReady: () => {
+          isReady.value = true
+          options.onReady?.()
+        },
+        ...options
+      })
+
+      // Fallback: Set ready after a short delay if onReady wasn't called
+      setTimeout(() => {
+        if (!isReady.value) {
+          isReady.value = true
+          options.onReady?.()
+        }
+      }, 1000)
+    } catch (error) {
+      console.error('Failed to initialize ArmorEditor:', error)
+      // Set ready even on error to hide loading
+      isReady.value = true
+    }
   }
 
   const setContent = (html) => {
@@ -45,6 +59,14 @@ export const useArmorEditor = (options = {}) => {
 
   onMounted(() => {
     initEditor()
+    
+    // Force ready state after 2 seconds if still not ready
+    setTimeout(() => {
+      if (!isReady.value) {
+        console.warn('ArmorEditor: Forcing ready state after timeout')
+        isReady.value = true
+      }
+    }, 2000)
   })
 
   onBeforeUnmount(() => {

@@ -1,5 +1,5 @@
 // Version info
-export const VERSION = '1.0.0';
+export const VERSION = '1.0.1';
 
 import { icons } from './icons';
 
@@ -118,10 +118,22 @@ export class ArmorEditor {
     if (typeof window !== 'undefined') {
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
-          setTimeout(() => this.init(), 100);
+          setTimeout(() => {
+            this.init();
+            // Ensure onReady is called
+            if (!this.isSSR) {
+              this.options.onReady?.();
+            }
+          }, 100);
         });
       } else {
-        setTimeout(() => this.init(), 100);
+        setTimeout(() => {
+          this.init();
+          // Ensure onReady is called
+          if (!this.isSSR) {
+            this.options.onReady?.();
+          }
+        }, 100);
       }
     }
   }
@@ -512,12 +524,12 @@ export class ArmorEditor {
     `;
     
     const insertBtn = this.linkDialog.querySelector('button:last-child') as HTMLButtonElement;
-    const urlInput = this.linkDialog.querySelector('input:first-child') as HTMLInputElement;
-    const textInput = this.linkDialog.querySelector('input:last-of-type') as HTMLInputElement;
+    const urlInput = this.linkDialog.querySelector('input[type="text"]:first-of-type') as HTMLInputElement;
+    const textInput = this.linkDialog.querySelector('input[type="text"]:last-of-type') as HTMLInputElement;
     
     insertBtn.onclick = () => {
-      const url = urlInput.value;
-      const text = textInput.value || url;
+      const url = urlInput?.value || '';
+      const text = textInput?.value || url;
       if (url) {
         this.execCommand('createLink', url);
         if (text !== url) {
@@ -566,13 +578,13 @@ export class ArmorEditor {
     `;
     
     const insertBtn = this.imageDialog.querySelector('button:last-child') as HTMLButtonElement;
-    const urlInput = this.imageDialog.querySelector('input[type="text"]:first-child') as HTMLInputElement;
+    const urlInput = this.imageDialog.querySelector('input[type="text"]:first-of-type') as HTMLInputElement;
     const fileInput = this.imageDialog.querySelector('input[type="file"]') as HTMLInputElement;
-    const altInput = this.imageDialog.querySelector('input[type="text"]:last-child') as HTMLInputElement;
+    const altInput = this.imageDialog.querySelector('input[type="text"]:last-of-type') as HTMLInputElement;
     
     insertBtn.onclick = () => {
-      const url = urlInput.value;
-      const alt = altInput.value;
+      const url = urlInput?.value || '';
+      const alt = altInput?.value || '';
       
       if (url) {
         this.insertImage(url, alt);
@@ -633,12 +645,12 @@ export class ArmorEditor {
     `;
     
     const insertBtn = this.tableDialog.querySelector('button:last-child') as HTMLButtonElement;
-    const rowsInput = this.tableDialog.querySelector('input[type="number"]:first-child') as HTMLInputElement;
-    const colsInput = this.tableDialog.querySelector('input[type="number"]:last-child') as HTMLInputElement;
+    const rowsInput = this.tableDialog.querySelector('input[type="number"]:first-of-type') as HTMLInputElement;
+    const colsInput = this.tableDialog.querySelector('input[type="number"]:last-of-type') as HTMLInputElement;
     
     insertBtn.onclick = () => {
-      const rows = parseInt(rowsInput.value);
-      const cols = parseInt(colsInput.value);
+      const rows = parseInt(rowsInput?.value || '3');
+      const cols = parseInt(colsInput?.value || '3');
       this.insertTable(rows, cols);
       this.tableDialog?.remove();
     };

@@ -106,11 +106,25 @@
             if (typeof window !== 'undefined') {
                 if (document.readyState === 'loading') {
                     document.addEventListener('DOMContentLoaded', () => {
-                        setTimeout(() => this.init(), 100);
+                        setTimeout(() => {
+                            var _a, _b;
+                            this.init();
+                            // Ensure onReady is called
+                            if (!this.isSSR) {
+                                (_b = (_a = this.options).onReady) === null || _b === void 0 ? void 0 : _b.call(_a);
+                            }
+                        }, 100);
                     });
                 }
                 else {
-                    setTimeout(() => this.init(), 100);
+                    setTimeout(() => {
+                        var _a, _b;
+                        this.init();
+                        // Ensure onReady is called
+                        if (!this.isSSR) {
+                            (_b = (_a = this.options).onReady) === null || _b === void 0 ? void 0 : _b.call(_a);
+                        }
+                    }, 100);
                 }
             }
         }
@@ -469,12 +483,12 @@
       </div>
     `;
             const insertBtn = this.linkDialog.querySelector('button:last-child');
-            const urlInput = this.linkDialog.querySelector('input:first-child');
-            const textInput = this.linkDialog.querySelector('input:last-of-type');
+            const urlInput = this.linkDialog.querySelector('input[type="text"]:first-of-type');
+            const textInput = this.linkDialog.querySelector('input[type="text"]:last-of-type');
             insertBtn.onclick = () => {
                 var _a;
-                const url = urlInput.value;
-                const text = textInput.value || url;
+                const url = (urlInput === null || urlInput === void 0 ? void 0 : urlInput.value) || '';
+                const text = (textInput === null || textInput === void 0 ? void 0 : textInput.value) || url;
                 if (url) {
                     this.execCommand('createLink', url);
                     if (text !== url) {
@@ -519,13 +533,13 @@
       </div>
     `;
             const insertBtn = this.imageDialog.querySelector('button:last-child');
-            const urlInput = this.imageDialog.querySelector('input[type="text"]:first-child');
+            const urlInput = this.imageDialog.querySelector('input[type="text"]:first-of-type');
             const fileInput = this.imageDialog.querySelector('input[type="file"]');
-            const altInput = this.imageDialog.querySelector('input[type="text"]:last-child');
+            const altInput = this.imageDialog.querySelector('input[type="text"]:last-of-type');
             insertBtn.onclick = () => {
                 var _a, _b;
-                const url = urlInput.value;
-                const alt = altInput.value;
+                const url = (urlInput === null || urlInput === void 0 ? void 0 : urlInput.value) || '';
+                const alt = (altInput === null || altInput === void 0 ? void 0 : altInput.value) || '';
                 if (url) {
                     this.insertImage(url, alt);
                     (_a = this.imageDialog) === null || _a === void 0 ? void 0 : _a.remove();
@@ -581,12 +595,12 @@
       </div>
     `;
             const insertBtn = this.tableDialog.querySelector('button:last-child');
-            const rowsInput = this.tableDialog.querySelector('input[type="number"]:first-child');
-            const colsInput = this.tableDialog.querySelector('input[type="number"]:last-child');
+            const rowsInput = this.tableDialog.querySelector('input[type="number"]:first-of-type');
+            const colsInput = this.tableDialog.querySelector('input[type="number"]:last-of-type');
             insertBtn.onclick = () => {
                 var _a;
-                const rows = parseInt(rowsInput.value);
-                const cols = parseInt(colsInput.value);
+                const rows = parseInt((rowsInput === null || rowsInput === void 0 ? void 0 : rowsInput.value) || '3');
+                const cols = parseInt((colsInput === null || colsInput === void 0 ? void 0 : colsInput.value) || '3');
                 this.insertTable(rows, cols);
                 (_a = this.tableDialog) === null || _a === void 0 ? void 0 : _a.remove();
             };
