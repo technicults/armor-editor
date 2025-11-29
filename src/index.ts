@@ -601,6 +601,14 @@ export class ArmorEditor {
   }
 
   private showLinkDialog() {
+    // Get selected text before creating dialog
+    const selection = window.getSelection();
+    let selectedText = '';
+    
+    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+      selectedText = selection.toString().trim();
+    }
+    
     this.linkDialog = document.createElement('div');
     this.linkDialog.style.cssText = `
       position: fixed;
@@ -613,46 +621,92 @@ export class ArmorEditor {
       padding: 20px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
       z-index: 1001;
-      min-width: 300px;
+      min-width: 400px;
     `;
     
     this.linkDialog.innerHTML = `
       <h3>Insert Link</h3>
-      <input type="text" placeholder="URL" style="width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px;">
-      <input type="text" placeholder="Link Text" style="width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px;">
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px;">Link Text:</label>
+        <input type="text" id="link-text" value="${selectedText}" placeholder="Enter link text" 
+               style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px;">URL:</label>
+        <input type="url" id="link-url" placeholder="https://example.com" 
+               style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+      </div>
       <div style="text-align: right; margin-top: 15px;">
-        <button onclick="this.parentElement.parentElement.remove()" style="margin-right: 8px; padding: 8px 16px; border: 1px solid #ccc; background: #f5f5f5; border-radius: 4px; cursor: pointer;">Cancel</button>
-        <button style="padding: 8px 16px; border: none; background: #007cba; color: white; border-radius: 4px; cursor: pointer;">Insert</button>
+        <button id="cancel-link" style="margin-right: 8px; padding: 8px 16px; border: 1px solid #ccc; background: #f5f5f5; border-radius: 4px; cursor: pointer;">Cancel</button>
+        <button id="insert-link" style="padding: 8px 16px; border: none; background: #007cba; color: white; border-radius: 4px; cursor: pointer;">Insert Link</button>
       </div>
     `;
     
-    const insertBtn = this.linkDialog?.querySelector('button:last-child') as HTMLButtonElement;
-    const urlInput = this.linkDialog?.querySelector('input[type="text"]:first-of-type') as HTMLInputElement;
-    const textInput = this.linkDialog?.querySelector('input[type="text"]:last-of-type') as HTMLInputElement;
+    document.body.appendChild(this.linkDialog);
     
-    if (!insertBtn || !urlInput || !textInput) return;
+    const textInput = this.linkDialog.querySelector('#link-text') as HTMLInputElement;
+    const urlInput = this.linkDialog.querySelector('#link-url') as HTMLInputElement;
+    const cancelBtn = this.linkDialog.querySelector('#cancel-link') as HTMLButtonElement;
+    const insertBtn = this.linkDialog.querySelector('#insert-link') as HTMLButtonElement;
     
-    insertBtn.onclick = () => {
-      const url = urlInput?.value || '';
-      const text = textInput?.value || url;
-      if (url) {
-        this.execCommand('createLink', url);
-        if (text !== url) {
-          const selection = window.getSelection();
-          if (selection?.rangeCount) {
-            const range = selection.getRangeAt(0);
-            range.deleteContents();
-            const link = document.createElement('a');
-            link.href = url;
-            link.textContent = text;
-            range.insertNode(link);
-          }
-        }
+    // Focus appropriate input
+    if (selectedText) {
+      urlInput.focus();
+    } else {
+      textInput.focus();
+    }
+    
+    cancelBtn.onclick = () => {
+      if (this.linkDialog) {
+        this.linkDialog.remove();
+        this.linkDialog = null;
       }
-      this.linkDialog?.remove();
     };
     
-    document.body.appendChild(this.linkDialog);
+    insertBtn.onclick = () => {
+      const text = textInput.value.trim();
+      const url = urlInput.value.trim();
+      
+      if (text && url) {
+        this.insertLink(text, url);
+        if (this.linkDialog) {
+          this.linkDialog.remove();
+          this.linkDialog = null;
+        }
+      }
+    };
+  }
+
+  private insertLink(text: string, url: string) {
+    this.editor.focus();
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.textContent = text;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      
+      // If there's selected text, replace it
+      if (!selection.isCollapsed) {
+        range.deleteContents();
+      }
+      
+      range.insertNode(link);
+      range.setStartAfter(link);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } else {
+      // Fallback: append to editor
+      this.editor.appendChild(link);
+    }
+    
+    // Trigger change event
+    this.options.onChange?.(this.getContent());
   }
 
   private showImageDialog() {
@@ -749,80 +803,77 @@ export class ArmorEditor {
     let startX = 0;
     let startWidth = 0;
     
-    // Add resize handle on hover
-    img.addEventListener('mouseenter', () => {
-      // Create resize handle if it doesn't exist
-      let handle = img.parentElement?.querySelector('.resize-handle') as HTMLElement;
-      if (!handle) {
-        handle = document.createElement('div');
-        handle.className = 'resize-handle';
-        handle.style.cssText = `
-          position: absolute;
-          width: 10px;
-          height: 10px;
-          background: #007cba;
-          bottom: -5px;
-          right: -5px;
-          cursor: se-resize;
-          border: 1px solid #fff;
-          z-index: 1000;
-          display: block;
-        `;
-        
-        // Wrap image in container for positioning
-        const wrapper = document.createElement('div');
-        wrapper.style.cssText = `
-          position: relative;
-          display: inline-block;
-          margin: 10px 0;
-        `;
-        
-        if (img.parentNode) {
-          img.parentNode.insertBefore(wrapper, img);
-          wrapper.appendChild(img);
-          wrapper.appendChild(handle);
-        }
-        
-        // Add resize functionality
-        handle.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          
-          isResizing = true;
-          startX = e.clientX;
-          startWidth = parseInt(window.getComputedStyle(img).width, 10);
-          
-          const handleResize = (e: MouseEvent) => {
-            if (!isResizing) return;
-            
-            const width = startWidth + e.clientX - startX;
-            img.style.width = Math.max(50, Math.min(width, 800)) + 'px';
-            img.style.height = 'auto';
-          };
-          
-          const stopResize = () => {
-            isResizing = false;
-            document.removeEventListener('mousemove', handleResize);
-            document.removeEventListener('mouseup', stopResize);
-            handle.style.display = 'none';
-            this.options.onChange?.(this.getContent());
-          };
-          
-          document.addEventListener('mousemove', handleResize);
-          document.addEventListener('mouseup', stopResize);
-        });
-      } else {
-        handle.style.display = 'block';
+    // Create wrapper for positioning
+    const wrapper = document.createElement('div');
+    wrapper.className = 'resize-wrapper';
+    wrapper.style.cssText = `
+      position: relative;
+      display: inline-block;
+      margin: 10px 0;
+    `;
+    
+    // Replace image with wrapper
+    if (img.parentNode) {
+      img.parentNode.insertBefore(wrapper, img);
+      wrapper.appendChild(img);
+    }
+    
+    // Create resize handle
+    const handle = document.createElement('div');
+    handle.className = 'resize-handle';
+    handle.style.cssText = `
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #007cba;
+      bottom: -5px;
+      right: -5px;
+      cursor: se-resize;
+      border: 1px solid #fff;
+      z-index: 1000;
+      display: none;
+    `;
+    
+    wrapper.appendChild(handle);
+    
+    // Show/hide handle on hover
+    wrapper.addEventListener('mouseenter', () => {
+      handle.style.display = 'block';
+    });
+    
+    wrapper.addEventListener('mouseleave', () => {
+      if (!isResizing) {
+        handle.style.display = 'none';
       }
     });
     
-    img.addEventListener('mouseleave', () => {
-      if (!isResizing) {
-        const handle = img.parentElement?.querySelector('.resize-handle') as HTMLElement;
-        if (handle) {
-          handle.style.display = 'none';
-        }
-      }
+    // Resize functionality
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      isResizing = true;
+      startX = e.clientX;
+      startWidth = parseInt(window.getComputedStyle(img).width, 10);
+      
+      const handleResize = (e: MouseEvent) => {
+        if (!isResizing) return;
+        
+        const width = startWidth + e.clientX - startX;
+        img.style.width = Math.max(50, Math.min(width, 800)) + 'px';
+        img.style.height = 'auto';
+      };
+      
+      const stopResize = () => {
+        isResizing = false;
+        handle.style.display = 'none';
+        document.removeEventListener('mousemove', handleResize);
+        document.removeEventListener('mouseup', stopResize);
+        this.options.onChange?.(this.getContent());
+      };
+      
+      document.addEventListener('mousemove', handleResize);
+      document.addEventListener('mouseup', stopResize);
     });
   }
 
@@ -1669,6 +1720,91 @@ export class ArmorEditor {
     }
   }
 
+  private makeVideoResizable(container: HTMLElement) {
+    let isResizing = false;
+    let startX = 0;
+    let startY = 0;
+    let startWidth = 0;
+    let startHeight = 0;
+    
+    // Create wrapper for positioning
+    const wrapper = document.createElement('div');
+    wrapper.className = 'resize-wrapper';
+    wrapper.style.cssText = `
+      position: relative;
+      display: inline-block;
+      margin: 10px 0;
+    `;
+    
+    // Replace container with wrapper
+    if (container.parentNode) {
+      container.parentNode.insertBefore(wrapper, container);
+      wrapper.appendChild(container);
+    }
+    
+    // Create resize handle
+    const handle = document.createElement('div');
+    handle.className = 'resize-handle';
+    handle.style.cssText = `
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #007cba;
+      bottom: -5px;
+      right: -5px;
+      cursor: se-resize;
+      border: 1px solid #fff;
+      z-index: 1000;
+      display: none;
+    `;
+    
+    wrapper.appendChild(handle);
+    
+    // Show/hide handle on hover
+    wrapper.addEventListener('mouseenter', () => {
+      handle.style.display = 'block';
+    });
+    
+    wrapper.addEventListener('mouseleave', () => {
+      if (!isResizing) {
+        handle.style.display = 'none';
+      }
+    });
+    
+    // Resize functionality
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      isResizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      startWidth = parseInt(window.getComputedStyle(container).width, 10);
+      startHeight = parseInt(window.getComputedStyle(container).height, 10);
+      
+      const handleResize = (e: MouseEvent) => {
+        if (!isResizing) return;
+        
+        const width = startWidth + e.clientX - startX;
+        const height = startHeight + e.clientY - startY;
+        
+        container.style.width = Math.max(200, Math.min(width, 800)) + 'px';
+        container.style.height = Math.max(150, Math.min(height, 600)) + 'px';
+      };
+      
+      const stopResize = () => {
+        isResizing = false;
+        handle.style.display = 'none';
+        document.removeEventListener('mousemove', handleResize);
+        document.removeEventListener('mouseup', stopResize);
+        this.options.onChange?.(this.getContent());
+      };
+      
+      document.addEventListener('mousemove', handleResize);
+      document.addEventListener('mouseup', stopResize);
+    });
+  }
+
   private extractYouTubeId(url: string): string | null {
     const patterns = [
       /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
@@ -2473,7 +2609,29 @@ export class ArmorEditor {
     // Sanitize HTML content before setting
     const sanitizedHtml = this.sanitizeHTML(html);
     this.editor.innerHTML = sanitizedHtml;
+    
+    // Make existing images and videos resizable
+    this.makeExistingMediaResizable();
+    
     this.updateWordCount();
+  }
+
+  private makeExistingMediaResizable() {
+    // Make images resizable
+    const images = this.editor.querySelectorAll('img');
+    images.forEach(img => {
+      if (!img.parentElement?.classList.contains('resize-wrapper')) {
+        this.makeImageResizable(img as HTMLImageElement);
+      }
+    });
+    
+    // Make video containers resizable
+    const videoContainers = this.editor.querySelectorAll('div[style*="position: relative"][style*="padding-bottom"]');
+    videoContainers.forEach(container => {
+      if (!container.parentElement?.classList.contains('resize-wrapper')) {
+        this.makeVideoResizable(container as HTMLElement);
+      }
+    });
   }
 
   private sanitizeHTML(html: string): string {
