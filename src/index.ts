@@ -712,6 +712,10 @@ export class ArmorEditor {
     img.style.height = 'auto';
     img.style.display = 'block';
     img.style.margin = '10px 0';
+    img.style.cursor = 'pointer';
+    
+    // Add resize functionality
+    this.makeImageResizable(img);
     
     this.editor.focus();
     const selection = window.getSelection();
@@ -732,6 +736,88 @@ export class ArmorEditor {
     
     // Trigger change event
     this.options.onChange?.(this.getContent());
+  }
+
+  private makeImageResizable(img: HTMLImageElement) {
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+    
+    // Add resize handle on hover
+    img.addEventListener('mouseenter', () => {
+      // Create resize handle if it doesn't exist
+      let handle = img.parentElement?.querySelector('.resize-handle') as HTMLElement;
+      if (!handle) {
+        handle = document.createElement('div');
+        handle.className = 'resize-handle';
+        handle.style.cssText = `
+          position: absolute;
+          width: 10px;
+          height: 10px;
+          background: #007cba;
+          bottom: -5px;
+          right: -5px;
+          cursor: se-resize;
+          border: 1px solid #fff;
+          z-index: 1000;
+          display: block;
+        `;
+        
+        // Wrap image in container for positioning
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = `
+          position: relative;
+          display: inline-block;
+          margin: 10px 0;
+        `;
+        
+        if (img.parentNode) {
+          img.parentNode.insertBefore(wrapper, img);
+          wrapper.appendChild(img);
+          wrapper.appendChild(handle);
+        }
+        
+        // Add resize functionality
+        handle.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          isResizing = true;
+          startX = e.clientX;
+          startWidth = parseInt(window.getComputedStyle(img).width, 10);
+          
+          const handleResize = (e: MouseEvent) => {
+            if (!isResizing) return;
+            
+            const width = startWidth + e.clientX - startX;
+            img.style.width = Math.max(50, Math.min(width, 800)) + 'px';
+            img.style.height = 'auto';
+          };
+          
+          const stopResize = () => {
+            isResizing = false;
+            document.removeEventListener('mousemove', handleResize);
+            document.removeEventListener('mouseup', stopResize);
+            handle.style.display = 'none';
+            this.options.onChange?.(this.getContent());
+          };
+          
+          document.addEventListener('mousemove', handleResize);
+          document.addEventListener('mouseup', stopResize);
+        });
+      } else {
+        handle.style.display = 'block';
+      }
+    });
+    
+    img.addEventListener('mouseleave', () => {
+      if (!isResizing) {
+        const handle = img.parentElement?.querySelector('.resize-handle') as HTMLElement;
+        if (handle) {
+          handle.style.display = 'none';
+        }
+      }
+    });
   }
 
   private showTableDialog() {
@@ -2044,70 +2130,86 @@ export class ArmorEditor {
     this.container.appendChild(this.editor);
   }
 
-  private attachEvents() {
-    this.editor.addEventListener('input', () => {
-      this.options.onChange?.(this.getContent());
-      this.updateWordCount();
-    });
+  // Bound methods for proper cleanup
+  private handleInput = () => {
+    this.options.onChange?.(this.getContent());
+    this.updateWordCount();
+  };
 
-    // Update button states on selection change with debouncing
-    let selectionTimeout: number;
-    const updateButtonStates = () => {
-      clearTimeout(selectionTimeout);
-      selectionTimeout = window.setTimeout(() => {
-        this.updateFormattingButtonStates();
-      }, 50); // Small delay to ensure DOM is updated
-    };
-
-    // Listen to multiple events for comprehensive state updates
-    this.editor.addEventListener('selectionchange', updateButtonStates);
-    this.editor.addEventListener('mouseup', updateButtonStates);
-    this.editor.addEventListener('keyup', updateButtonStates);
-    this.editor.addEventListener('focus', updateButtonStates);
-    
-    // Also listen to document selection change for better coverage
-    document.addEventListener('selectionchange', () => {
-      if (document.activeElement === this.editor) {
-        updateButtonStates();
-      }
-    });
-
-    this.editor.addEventListener('keydown', (e) => {
-      if (e.ctrlKey || e.metaKey) {
-        const shortcuts: Record<string, () => void> = {
-          'b': () => this.execCommand('bold'),
-          'i': () => this.execCommand('italic'),
-          'u': () => this.execCommand('underline'),
-          'z': () => this.execCommand('undo'),
-          'y': () => this.execCommand('redo'),
-          'k': () => this.showLinkDialog(),
-          's': () => this.options.autoSave?.callback(this.getContent())
-        };
-        
-        if (shortcuts[e.key]) {
-          e.preventDefault();
-          shortcuts[e.key]();
-          // Update button states after formatting command
-          setTimeout(() => this.updateFormattingButtonStates(), 10);
-        }
-      }
+  private handleKeydown = (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      const shortcuts: Record<string, () => void> = {
+        'b': () => this.execCommand('bold'),
+        'i': () => this.execCommand('italic'),
+        'u': () => this.execCommand('underline'),
+        'z': () => this.execCommand('undo'),
+        'y': () => this.execCommand('redo'),
+        'k': () => this.showLinkDialog(),
+        's': () => this.options.autoSave?.callback(this.getContent())
+      };
       
-      if (e.key === 'Tab') {
+      if (shortcuts[e.key]) {
         e.preventDefault();
-        this.execCommand('insertHTML', '&nbsp;&nbsp;&nbsp;&nbsp;');
+        shortcuts[e.key]();
+        setTimeout(() => this.updateFormattingButtonStates(), 10);
       }
-      
-      // Mention trigger
-      if (e.key === '@' && this.options.mentions) {
-        setTimeout(() => this.showMentions(), 100);
-      }
-    });
-
-    this.editor.addEventListener('paste', (e) => {
+    }
+    
+    if (e.key === 'Tab') {
       e.preventDefault();
-      const text = e.clipboardData?.getData('text/plain') || '';
-      this.execCommand('insertText', text);
-    });
+      this.execCommand('insertHTML', '&nbsp;&nbsp;&nbsp;&nbsp;');
+    }
+    
+    if (e.key === '@' && this.options.mentions) {
+      setTimeout(() => this.showMentions(), 100);
+    }
+  };
+
+  private handlePaste = (e: ClipboardEvent) => {
+    e.preventDefault();
+    const text = e.clipboardData?.getData('text/plain') || '';
+    this.execCommand('insertText', text);
+  };
+
+  private selectionTimeout: number | null = null;
+  
+  private updateFormattingButtonStatesDebounced = () => {
+    if (this.selectionTimeout) {
+      clearTimeout(this.selectionTimeout);
+    }
+    this.selectionTimeout = window.setTimeout(() => {
+      this.updateFormattingButtonStates();
+    }, 50);
+  };
+
+  private handleMouseUp = () => {
+    this.updateFormattingButtonStatesDebounced();
+  };
+
+  private handleKeyUp = () => {
+    this.updateFormattingButtonStatesDebounced();
+  };
+
+  private handleFocus = () => {
+    this.updateFormattingButtonStatesDebounced();
+  };
+
+  private handleDocumentSelectionChange = () => {
+    if (document.activeElement === this.editor) {
+      this.updateFormattingButtonStatesDebounced();
+    }
+  };
+
+  private attachEvents() {
+    this.editor.addEventListener('input', this.handleInput);
+    this.editor.addEventListener('keydown', this.handleKeydown);
+    this.editor.addEventListener('paste', this.handlePaste);
+    this.editor.addEventListener('mouseup', this.handleMouseUp);
+    this.editor.addEventListener('keyup', this.handleKeyUp);
+    this.editor.addEventListener('focus', this.handleFocus);
+    
+    // Document selection change for better coverage
+    document.addEventListener('selectionchange', this.handleDocumentSelectionChange);
   }
 
   private updateFormattingButtonStates() {
@@ -2239,8 +2341,45 @@ export class ArmorEditor {
       console.warn('setContent expects a string, received:', typeof html);
       html = String(html || '');
     }
-    this.editor.innerHTML = html;
+    
+    // Sanitize HTML content before setting
+    const sanitizedHtml = this.sanitizeHTML(html);
+    this.editor.innerHTML = sanitizedHtml;
     this.updateWordCount();
+  }
+
+  private sanitizeHTML(html: string): string {
+    // Create a temporary div to parse HTML
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    
+    // Remove potentially dangerous elements
+    const dangerousElements = ['script', 'iframe', 'object', 'embed', 'form'];
+    dangerousElements.forEach(tag => {
+      const elements = temp.querySelectorAll(tag);
+      elements.forEach(el => el.remove());
+    });
+    
+    // Remove dangerous attributes from all elements
+    const allElements = temp.querySelectorAll('*');
+    allElements.forEach(el => {
+      const dangerousAttrs = ['onclick', 'onload', 'onerror', 'onmouseover', 'onfocus'];
+      dangerousAttrs.forEach(attr => {
+        if (el.hasAttribute(attr)) {
+          el.removeAttribute(attr);
+        }
+      });
+      
+      // Sanitize href attributes
+      if (el.hasAttribute('href')) {
+        const href = el.getAttribute('href') || '';
+        if (href.startsWith('javascript:') || href.startsWith('data:')) {
+          el.removeAttribute('href');
+        }
+      }
+    });
+    
+    return temp.innerHTML;
   }
 
   public getText(): string {
@@ -2287,6 +2426,34 @@ export class ArmorEditor {
   public destroy(): void {
     if (this.isSSR) return;
     
+    // Clear timers
+    if (this.autoSaveTimer) {
+      clearInterval(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+    }
+    
+    if (this.selectionTimeout) {
+      clearTimeout(this.selectionTimeout);
+      this.selectionTimeout = null;
+    }
+    
+    // Remove spell check listener
+    this.removeSpellCheckListener();
+    
+    // Remove all event listeners with proper cleanup
+    if (this.editor) {
+      this.editor.removeEventListener('input', this.handleInput);
+      this.editor.removeEventListener('keydown', this.handleKeydown);
+      this.editor.removeEventListener('paste', this.handlePaste);
+      this.editor.removeEventListener('mouseup', this.handleMouseUp);
+      this.editor.removeEventListener('keyup', this.handleKeyUp);
+      this.editor.removeEventListener('focus', this.handleFocus);
+    }
+    
+    // Remove document listeners
+    document.removeEventListener('selectionchange', this.handleDocumentSelectionChange);
+    
+    // Clean up DOM elements
     this.colorPicker?.remove();
     this.linkDialog?.remove();
     this.imageDialog?.remove();
@@ -2302,9 +2469,8 @@ export class ArmorEditor {
     // Remove all cursors
     document.querySelectorAll('[data-cursor]').forEach(cursor => cursor.remove());
     
-    if (this.autoSaveTimer) {
-      clearInterval(this.autoSaveTimer);
-    }
+    // Remove popups
+    document.querySelectorAll('.spell-suggestions, .mention-dialog, .resize-handle').forEach(popup => popup.remove());
     
     if (this.container) {
       this.container.innerHTML = '';
