@@ -1,5 +1,5 @@
 // Version info
-export const VERSION = '1.0.7';
+export const VERSION = '1.0.8';
 
 import { icons } from './icons';
 
