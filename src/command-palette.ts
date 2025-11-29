@@ -163,7 +163,7 @@ export class CommandPalette {
         this.hide();
       });
 
-      this.results.appendChild(item);
+      this.results!.appendChild(item);
     });
   }
 

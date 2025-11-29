@@ -1,5 +1,5 @@
 // Version info
-export const VERSION = '1.0.12';
+export const VERSION = '2.0.0';
 
 import { icons } from './icons';
 import { themes, applyTheme, Theme } from './themes';
@@ -9,6 +9,19 @@ import { PerformanceMonitor, debounce } from './performance';
 import { CommandPalette } from './command-palette';
 import { MobileEnhancements } from './mobile-enhancements';
 import { AIEnhancements } from './ai-enhancements';
+import { ExportSystem } from './export-system';
+import { PermissionsSystem } from './permissions-system';
+import { VersionSystem } from './version-system';
+import { AnalyticsSystem } from './analytics-system';
+import { WorkflowSystem } from './workflow-system';
+import { VoiceCommentsSystem } from './voice-comments';
+import { VideoIntegration } from './video-integration';
+import { MediaEditor } from './media-editor';
+import { EncryptionSystem } from './encryption-system';
+import { SSOIntegration } from './sso-integration';
+import { ComplianceSystem } from './compliance-system';
+import { ArmorEditorElement, ArmorEditorMicrofrontend } from './web-components';
+import { LocalAISystem } from './local-ai';
 
 export interface EditorOptions {
   container: HTMLElement | string;
@@ -101,6 +114,35 @@ export interface EditorOptions {
     enabled?: boolean;
     trackEvents?: string[];
   };
+  encryption?: {
+    enabled?: boolean;
+    endToEnd?: boolean;
+  };
+  sso?: {
+    provider?: 'saml' | 'oauth2' | 'oidc';
+    entityId?: string;
+    ssoUrl?: string;
+    certificate?: string;
+  };
+  compliance?: {
+    gdpr?: {
+      enabled?: boolean;
+      dataRetentionDays?: number;
+      consentRequired?: boolean;
+    };
+    hipaa?: {
+      enabled?: boolean;
+      auditLogging?: boolean;
+      encryptionRequired?: boolean;
+    };
+  };
+  voiceComments?: boolean;
+  videoIntegration?: boolean;
+  mediaEditor?: boolean;
+  localAI?: {
+    enabled?: boolean;
+    models?: string[];
+  };
 }
 
 export class ArmorEditor {
@@ -113,6 +155,18 @@ export class ArmorEditor {
   private commandPalette: CommandPalette | null = null;
   private mobileEnhancements: MobileEnhancements | null = null;
   private aiEnhancements: AIEnhancements | null = null;
+  private exportSystem: ExportSystem | null = null;
+  private permissionsSystem: PermissionsSystem | null = null;
+  private versionSystem: VersionSystem | null = null;
+  private analyticsSystem: AnalyticsSystem | null = null;
+  private workflowSystem: WorkflowSystem | null = null;
+  private voiceComments: VoiceCommentsSystem | null = null;
+  private videoIntegration: VideoIntegration | null = null;
+  private mediaEditor: MediaEditor | null = null;
+  private encryptionSystem: EncryptionSystem | null = null;
+  private ssoIntegration: SSOIntegration | null = null;
+  private complianceSystem: ComplianceSystem | null = null;
+  private localAI: LocalAISystem | null = null;
   private options: EditorOptions;
   private colorPicker: HTMLDivElement | null = null;
   private linkDialog: HTMLDivElement | null = null;
@@ -302,6 +356,55 @@ export class ArmorEditor {
     // Initialize AI enhancements
     if (this.options.ai?.enabled) {
       this.aiEnhancements = new AIEnhancements(this);
+    }
+    
+    // Initialize all enterprise systems
+    this.exportSystem = new ExportSystem(this);
+    this.permissionsSystem = new PermissionsSystem(this);
+    this.versionSystem = new VersionSystem(this);
+    this.analyticsSystem = new AnalyticsSystem(this);
+    this.workflowSystem = new WorkflowSystem(this);
+    
+    // Initialize new advanced systems
+    if (this.options.voiceComments) {
+      this.voiceComments = new VoiceCommentsSystem(this);
+    }
+    
+    if (this.options.videoIntegration) {
+      this.videoIntegration = new VideoIntegration(this);
+    }
+    
+    if (this.options.mediaEditor) {
+      this.mediaEditor = new MediaEditor(this);
+    }
+    
+    if (this.options.encryption?.enabled) {
+      this.encryptionSystem = new EncryptionSystem();
+    }
+    
+    if (this.options.sso) {
+      this.ssoIntegration = new SSOIntegration(this.options.sso);
+    }
+    
+    if (this.options.compliance?.gdpr?.enabled || this.options.compliance?.hipaa?.enabled) {
+      this.complianceSystem = new ComplianceSystem({
+        gdpr: {
+          enabled: this.options.compliance?.gdpr?.enabled || false,
+          dataRetentionDays: this.options.compliance?.gdpr?.dataRetentionDays || 365,
+          consentRequired: this.options.compliance?.gdpr?.consentRequired || false,
+          rightToErasure: true
+        },
+        hipaa: {
+          enabled: this.options.compliance?.hipaa?.enabled || false,
+          auditLogging: this.options.compliance?.hipaa?.auditLogging || false,
+          encryptionRequired: this.options.compliance?.hipaa?.encryptionRequired || false,
+          accessControls: true
+        }
+      });
+    }
+    
+    if (this.options.localAI?.enabled) {
+      this.localAI = new LocalAISystem();
     }
     
     // Initialize undo system
@@ -3644,6 +3747,35 @@ export class ArmorEditor {
       this.commandPalette.destroy();
     }
     
+    // Cleanup new advanced systems
+    if (this.voiceComments) {
+      // Voice comments cleanup handled internally
+    }
+    
+    if (this.videoIntegration) {
+      this.videoIntegration.endVideoCall();
+    }
+    
+    if (this.mediaEditor) {
+      // Media editor cleanup handled internally
+    }
+    
+    if (this.encryptionSystem) {
+      // Encryption system cleanup handled internally
+    }
+    
+    if (this.ssoIntegration) {
+      // SSO cleanup handled internally
+    }
+    
+    if (this.complianceSystem) {
+      // Compliance system cleanup handled internally
+    }
+    
+    if (this.localAI) {
+      this.localAI.destroy();
+    }
+    
     // Clear timers
     if (this.autoSaveTimer) {
       clearInterval(this.autoSaveTimer);
@@ -3810,6 +3942,63 @@ export class ArmorEditor {
   addContentTemplate(template: any) {
     this.aiEnhancements?.addTemplate(template);
   }
+
+  // Export system methods
+  async exportToPDF(options?: any): Promise<Blob> {
+    return this.exportSystem?.exportToPDF(options) || new Blob();
+  }
+
+  exportToMarkdown(): string {
+    return this.exportSystem?.exportToMarkdown() || '';
+  }
+
+  exportToHTML(options?: any): string {
+    return this.exportSystem?.exportToHTML(options) || '';
+  }
+
+  async importFromMarkdown(markdown: string): Promise<void> {
+    await this.exportSystem?.importFromMarkdown(markdown);
+  }
+
+  // Permissions system methods
+  setCurrentUser(user: any) {
+    this.permissionsSystem?.setCurrentUser(user);
+  }
+
+  hasPermission(action: string, resource: string): boolean {
+    return this.permissionsSystem?.hasPermission(action as any, resource as any) || false;
+  }
+
+  // Version system methods
+  createVersion(message: string, author: any) {
+    return this.versionSystem?.createVersion(message, author);
+  }
+
+  restoreVersion(versionId: string): boolean {
+    return this.versionSystem?.restoreVersion(versionId) || false;
+  }
+
+  getVersionHistory() {
+    return this.versionSystem?.getVersionHistory() || [];
+  }
+
+  // Analytics methods
+  showAnalyticsDashboard() {
+    this.analyticsSystem?.showDashboard();
+  }
+
+  getAnalyticsMetrics() {
+    return this.analyticsSystem?.getMetrics();
+  }
+
+  // Workflow methods
+  startWorkflow(workflowId: string, documentId: string, initiatedBy: string): string {
+    return this.workflowSystem?.startWorkflow(workflowId, documentId, initiatedBy) || '';
+  }
+
+  showWorkflowDashboard() {
+    this.workflowSystem?.showWorkflowDashboard();
+  }
 }
 
 // Auto-initialization for data attributes (SSR-safe)
@@ -3860,3 +4049,18 @@ export { PerformanceMonitor, debounce, throttle, VirtualScroll } from './perform
 export { CommandPalette, Command } from './command-palette';
 export { MobileEnhancements } from './mobile-enhancements';
 export { AIEnhancements, ContentTemplate } from './ai-enhancements';
+export { ExportSystem, ExportOptions } from './export-system';
+export { PermissionsSystem, User, UserRole, Permission } from './permissions-system';
+export { VersionSystem, DocumentVersion } from './version-system';
+export { AnalyticsSystem, AnalyticsEvent, AnalyticsMetrics } from './analytics-system';
+export { WorkflowSystem, Workflow, WorkflowStep } from './workflow-system';
+
+// Export new advanced systems
+export { VoiceCommentsSystem, VoiceComment } from './voice-comments';
+export { VideoIntegration, VideoCall } from './video-integration';
+export { MediaEditor, MediaEditOptions } from './media-editor';
+export { EncryptionSystem } from './encryption-system';
+export { SSOIntegration, SSOConfig, UserProfile } from './sso-integration';
+export { ComplianceSystem, ComplianceConfig, DataProcessingRecord } from './compliance-system';
+export { ArmorEditorElement, ArmorEditorMicrofrontend } from './web-components';
+export { LocalAISystem, LocalAIModel } from './local-ai';

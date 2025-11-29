@@ -91,8 +91,28 @@ export class MobileEnhancements {
     if (range) {
       const selection = window.getSelection();
       if (selection) {
-        // Expand to word boundaries
-        range.expand('word');
+        // Expand to word boundaries (fallback for browsers without expand)
+        try {
+          (range as any).expand('word');
+        } catch {
+          // Fallback: select current word manually
+          const text = range.toString();
+          if (text) {
+            const startContainer = range.startContainer;
+            const textContent = startContainer.textContent || '';
+            const offset = range.startOffset;
+            
+            // Find word boundaries
+            let start = offset;
+            let end = offset;
+            
+            while (start > 0 && /\w/.test(textContent[start - 1])) start--;
+            while (end < textContent.length && /\w/.test(textContent[end])) end++;
+            
+            range.setStart(startContainer, start);
+            range.setEnd(startContainer, end);
+          }
+        }
         selection.removeAllRanges();
         selection.addRange(range);
         

@@ -51,6 +51,143 @@ Best regards,
 {{introduction}}
 
 ## Main Content
+{{main_content}}
+
+## Conclusion
+{{conclusion}}`,
+        variables: ['title', 'introduction', 'main_content', 'conclusion']
+      },
+      {
+        id: 'meeting-notes',
+        name: 'Meeting Notes',
+        description: 'Professional meeting notes template',
+        category: 'Business',
+        content: `# Meeting Notes - {{date}}
+
+**Attendees:** {{attendees}}
+**Duration:** {{duration}}
+
+## Agenda
+{{agenda}}
+
+## Key Decisions
+{{decisions}}
+
+## Action Items
+{{action_items}}
+
+## Next Steps
+{{next_steps}}`,
+        variables: ['date', 'attendees', 'duration', 'agenda', 'decisions', 'action_items', 'next_steps']
+      }
+    ];
+  }
+
+  private setupSmartSuggestions() {
+    this.editor.editor?.addEventListener('input', (e: Event) => {
+      const target = e.target as HTMLElement;
+      const text = target.textContent || '';
+      
+      if (text.endsWith('/')) {
+        this.showTemplateSuggestions();
+      }
+    });
+  }
+
+  private showTemplateSuggestions() {
+    if (this.suggestionBox) {
+      this.suggestionBox.remove();
+    }
+
+    this.suggestionBox = document.createElement('div');
+    this.suggestionBox.className = 'ai-template-suggestions';
+    this.suggestionBox.innerHTML = `
+      <div class="suggestion-header">Choose a template:</div>
+      ${this.templates.map(template => `
+        <div class="suggestion-item" data-template-id="${template.id}">
+          <div class="suggestion-name">${template.name}</div>
+          <div class="suggestion-desc">${template.description}</div>
+        </div>
+      `).join('')}
+    `;
+
+    this.suggestionBox.addEventListener('click', (e) => {
+      const item = (e.target as HTMLElement).closest('.suggestion-item');
+      if (item) {
+        const templateId = item.getAttribute('data-template-id');
+        this.insertTemplate(templateId!);
+      }
+    });
+
+    document.body.appendChild(this.suggestionBox);
+  }
+
+  private insertTemplate(templateId: string) {
+    const template = this.templates.find(t => t.id === templateId);
+    if (!template) return;
+
+    // Replace the '/' with template content
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      
+      const templateElement = document.createElement('div');
+      templateElement.innerHTML = this.processTemplate(template);
+      
+      while (templateElement.firstChild) {
+        range.insertNode(templateElement.firstChild);
+      }
+    }
+
+    this.suggestionBox?.remove();
+    this.suggestionBox = null;
+  }
+
+  private processTemplate(template: ContentTemplate): string {
+    let content = template.content;
+    
+    if (template.variables) {
+      template.variables.forEach(variable => {
+        const placeholder = `<span class="template-variable" data-variable="${variable}">{{${variable}}}</span>`;
+        content = content.replace(new RegExp(`{{${variable}}}`, 'g'), placeholder);
+      });
+    }
+    
+    return content;
+  }
+
+  addCustomTemplate(template: ContentTemplate) {
+    this.templates.push(template);
+  }
+
+  getTemplates(): ContentTemplate[] {
+    return [...this.templates];
+  }
+
+  async generateContent(prompt: string, provider: string = 'openai'): Promise<string> {
+    // AI content generation implementation
+    try {
+      const response = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, provider })
+      });
+      
+      const data = await response.json();
+      return data.content || '';
+    } catch (error) {
+      console.error('AI generation failed:', error);
+      return '';
+    }
+  }
+
+  destroy() {
+    this.suggestionBox?.remove();
+  }
+{{introduction}}
+
+## Main Content
 {{main_points}}
 
 ## Conclusion
@@ -169,7 +306,7 @@ Best regards,
         this.hideSuggestions();
       });
       
-      this.suggestionBox.appendChild(item);
+      this.suggestionBox!.appendChild(item);
     });
 
     // Position near cursor
