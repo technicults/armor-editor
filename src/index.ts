@@ -9,7 +9,6 @@ import { PerformanceMonitor, debounce } from './performance';
 import { CommandPalette } from './command-palette';
 import { MobileEnhancements } from './mobile-enhancements';
 import { AIEnhancements } from './ai-enhancements';
-import { ExportSystem } from './export-system';
 import { PermissionsSystem } from './permissions-system';
 import { VersionSystem } from './version-system';
 import { AnalyticsSystem } from './analytics-system';
@@ -22,11 +21,8 @@ import { CompleteMediaEditor } from './media-editor-complete';
 import { EncryptionSystem } from './encryption-system';
 import { VoiceCommentsSystem } from './voice-comments';
 import { VideoIntegration } from './video-integration';
-import { MediaEditor } from './media-editor';
 import { SSOIntegration } from './sso-integration';
 import { ComplianceSystem } from './compliance-system';
-import { ArmorEditorElement, ArmorEditorMicrofrontend } from './web-components';
-import { LocalAISystem } from './local-ai';
 
 export interface EditorOptions {
   container: HTMLElement | string;
@@ -160,7 +156,7 @@ export class ArmorEditor {
   private commandPalette: CommandPalette | null = null;
   private mobileEnhancements: MobileEnhancements | null = null;
   private aiEnhancements: AIEnhancements | null = null;
-  private exportSystem: ExportSystem | null = null;
+  private exportSystem: CompleteExportImport | null = null;
   private permissionsSystem: PermissionsSystem | null = null;
   private versionSystem: VersionSystem | null = null;
   private analyticsSystem: AnalyticsSystem | null = null;
@@ -173,10 +169,9 @@ export class ArmorEditor {
   private encryptionSystem: EncryptionSystem | null = null;
   private voiceComments: VoiceCommentsSystem | null = null;
   private videoIntegration: VideoIntegration | null = null;
-  private mediaEditor: MediaEditor | null = null;
   private ssoIntegration: SSOIntegration | null = null;
   private complianceSystem: ComplianceSystem | null = null;
-  private localAI: LocalAISystem | null = null;
+  private localAI: CompleteLocalAI | null = null;
   private options: EditorOptions;
   private colorPicker: HTMLDivElement | null = null;
   private linkDialog: HTMLDivElement | null = null;
@@ -369,7 +364,7 @@ export class ArmorEditor {
     }
     
     // Initialize all enterprise systems
-    this.exportSystem = new ExportSystem(this);
+    this.exportSystem = new CompleteExportImport(this);
     this.permissionsSystem = new PermissionsSystem(this);
     this.versionSystem = new VersionSystem(this);
     this.analyticsSystem = new AnalyticsSystem(this);
@@ -382,10 +377,6 @@ export class ArmorEditor {
     
     if (this.options.videoIntegration) {
       this.videoIntegration = new VideoIntegration(this);
-    }
-    
-    if (this.options.mediaEditor) {
-      this.mediaEditor = new MediaEditor(this);
     }
     
     if (this.options.encryption?.enabled) {
@@ -3779,10 +3770,6 @@ export class ArmorEditor {
       this.videoIntegration.endVideoCall();
     }
     
-    if (this.mediaEditor) {
-      // Media editor cleanup handled internally
-    }
-    
     if (this.encryptionSystem) {
       // Encryption system cleanup handled internally
     }
@@ -3967,15 +3954,15 @@ export class ArmorEditor {
   }
 
   // Export system methods
-  async exportToPDF(options?: any): Promise<Blob> {
+  async exportToPDF(options?: any): Promise<any> {
     return this.exportSystem?.exportToPDF(options) || new Blob();
   }
 
-  exportToMarkdown(): string {
+  exportToMarkdown(): any {
     return this.exportSystem?.exportToMarkdown() || '';
   }
 
-  exportToHTML(options?: any): string {
+  exportToHTML(options?: any): any {
     return this.exportSystem?.exportToHTML(options) || '';
   }
 
@@ -4072,7 +4059,7 @@ export { PerformanceMonitor, debounce, throttle, VirtualScroll } from './perform
 export { CommandPalette, Command } from './command-palette';
 export { MobileEnhancements } from './mobile-enhancements';
 export { AIEnhancements, ContentTemplate } from './ai-enhancements';
-export { ExportSystem, ExportOptions } from './export-system';
+export { CompleteExportImport } from './export-import-complete';
 export { PermissionsSystem, User, UserRole, Permission } from './permissions-system';
 export { VersionSystem, DocumentVersion } from './version-system';
 export { AnalyticsSystem, AnalyticsEvent, AnalyticsMetrics } from './analytics-system';
@@ -4081,9 +4068,8 @@ export { WorkflowSystem, Workflow, WorkflowStep } from './workflow-system';
 // Export new advanced systems
 export { VoiceCommentsSystem, VoiceComment } from './voice-comments';
 export { VideoIntegration, VideoCall } from './video-integration';
-export { MediaEditor, MediaEditOptions } from './media-editor';
+export { CompleteMediaEditor } from './media-editor-complete';
 export { EncryptionSystem } from './encryption-system';
 export { SSOIntegration, SSOConfig, UserProfile } from './sso-integration';
 export { ComplianceSystem, ComplianceConfig, DataProcessingRecord } from './compliance-system';
-export { ArmorEditorElement, ArmorEditorMicrofrontend } from './web-components';
-export { LocalAISystem, LocalAIModel } from './local-ai';
+export { CompleteLocalAI } from './local-ai-complete';

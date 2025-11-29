@@ -273,20 +273,6 @@ export class CompleteExportImport {
     return csv;
   }
 
-  // Markdown Export
-  public exportToMarkdown(filename: string = 'document.md') {
-    try {
-      const content = this.editor.getContent();
-      const markdown = this.htmlToMarkdown(content);
-      const blob = new Blob([markdown], { type: 'text/markdown' });
-      this.downloadBlob(blob, filename);
-      return true;
-    } catch (error) {
-      console.error('Markdown export failed:', error);
-      return false;
-    }
-  }
-
   private htmlToMarkdown(html: string): string {
     return html
       .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
@@ -438,5 +424,24 @@ export class CompleteExportImport {
       .replace(/\n\n/g, '</p><p>')
       .replace(/^(.*)$/gim, '<p>$1</p>')
       .replace(/<p><\/p>/g, '');
+  }
+
+  // HTML Export
+  public exportToHTML(options: { includeStyles?: boolean } = {}): string {
+    const content = this.editor.getContent();
+    const styles = options.includeStyles ? '<style>body { font-family: Arial, sans-serif; }</style>' : '';
+    return `<!DOCTYPE html><html><head>${styles}</head><body>${content}</body></html>`;
+  }
+
+  // Markdown Export
+  public exportToMarkdown(): string {
+    const content = this.editor.getContent();
+    return this.htmlToMarkdown(content);
+  }
+
+  // Markdown Import
+  public async importFromMarkdown(markdown: string): Promise<void> {
+    const html = this.markdownToHtml(markdown);
+    this.editor.setContent(html);
   }
 }
