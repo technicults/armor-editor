@@ -1,7 +1,7 @@
 # ArmorEditor
 
 [![npm version](https://badge.fury.io/js/armor-editor.svg)](https://www.npmjs.com/package/armor-editor)
-[![Downloads](https://img.shields.io/npm/dl/armor-editor.svg)](https://www.npmjs.com/package/armor-editor)
+[![Downloads](https://img.shields.io/npm/dt/armor-editor.svg)](https://www.npmjs.com/package/armor-editor)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Size](https://img.shields.io/bundlephobia/minzip/armor-editor.svg)](https://bundlephobia.com/package/armor-editor)
 
@@ -113,9 +113,7 @@ MIT License - see [LICENSE](./LICENSE) file.
 
 ## Community
 
-- **[GitHub Discussions](https://github.com/technicults/armor-editor/discussions)** - Community support
-- **[Issues](https://github.com/technicults/armor-editor/issues)** - Bug reports & feature requests
-- **[NPM](https://www.npmjs.com/package/armor-editor)** - Package downloads & stats
+- **[GitHub Issues](https://github.com/technicults/armor-editor/issues)** - Bug reports & feature requests
 
 ## Links
 
