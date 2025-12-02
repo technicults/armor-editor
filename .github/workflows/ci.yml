@@ -23,7 +23,6 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        # use npm ci for reproducible CI installs
         run: npm install
 
       - name: Run tests
