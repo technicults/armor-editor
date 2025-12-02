@@ -75,7 +75,8 @@ jobs:
           done
 
           echo "Resolved next version: $NEW_VERSION"
-          echo "::set-output name=version::$NEW_VERSION"
+          # modern output method
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Update package.json and source VERSION (if present)
         run: |
