@@ -1,25 +1,21 @@
 name: Auto Patch Release
 
-# Run only on pushes to main
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
-# Prevent overlapping release runs for the same ref (reduces race)
 concurrency:
   group: auto-patch-release-${{ github.ref }}
   cancel-in-progress: true
 
-# Avoid running when the push was made by GitHub Actions itself
-# (extra safety; job-level guard also used below)
 permissions:
   contents: write
   packages: write
 
 jobs:
   test-and-release:
-    # Prevent this job running if the actor is the Actions bot that pushed changes.
-    if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: --max_old_space_size=4096
@@ -41,16 +37,13 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run tests (and linters/build if needed)
-        run: |
-          # Adjust this to your test / lint / build sequence
-          npm test
+      - name: Run tests
+        run: npm test
 
       - name: Compute next patch version
         id: bump
         run: |
           set -euo pipefail
-          # get current semver
           CURRENT_VERSION=$(node -p "require('./package.json').version")
           echo "Current version: $CURRENT_VERSION"
 
@@ -63,7 +56,6 @@ jobs:
 
           NEW_VERSION=$(increment_patch "$CURRENT_VERSION")
           attempts=0
-          # find a version that's not on npm and not already tagged locally/remote
           while npm view "$(node -p "require('./package.json').name")@$NEW_VERSION" version &>/dev/null || git ls-remote --tags origin | awk -F/ '{print $NF}' | grep -q "^v$NEW_VERSION$"; do
             attempts=$((attempts+1))
             if [ "$attempts" -gt 50 ]; then
@@ -75,54 +67,49 @@ jobs:
           done
 
           echo "Resolved next version: $NEW_VERSION"
-          # modern output method
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Update package.json and source VERSION (if present)
+        id: update-source
         run: |
           set -euo pipefail
-          NEW_VERSION="${{ steps.bump.outputs.version }}"
-          echo "Setting version to $NEW_VERSION"
-          # bump package.json without creating a git tag
+          NEW_VERSION=${{ steps.bump.outputs.version }}
+          echo "Updating package.json to $NEW_VERSION (no git tag created here)"
           npm version "$NEW_VERSION" --no-git-tag-version
-
-          # update VERSION constant if present (safe: won't fail pipeline if not present)
           if [ -f src/index.ts ] && grep -q "export const VERSION" src/index.ts 2>/dev/null; then
             sed -i "s/export const VERSION = '[^']*'/export const VERSION = '$NEW_VERSION'/" src/index.ts || true
           fi
 
       - name: Build package
         run: npm run build
-
+        
       - name: Commit changes, create tag and push
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         env:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
           set -euo pipefail
           git config user.email "technicults@gmail.com"
           git config user.name "Technicults [bot]"
-
-          # stage any changes (package.json, built files, src change)
           git add -A
-
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "chore(release): v$NEW_VERSION [skip ci]" 
+            git commit -m "chore(release): v$NEW_VERSION [skip ci]"
             git tag "v$NEW_VERSION"
-            # push branch and tags
             git push origin HEAD:main --follow-tags
           fi
 
       - name: Publish to npm
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
-          # npm publish will use NODE_AUTH_TOKEN from env via setup-node's always-auth
           npm publish
 
       - name: Create GitHub release (generate notes automatically)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.bump.outputs.version }}
