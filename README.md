@@ -1,4 +1,6 @@
-# ArmorEditor
+# ArmorEditor 
+
+## We are under development (This is currently being built or improved and is not yet ready for production)
 
 [![npm version](https://badge.fury.io/js/armor-editor.svg)](https://www.npmjs.com/package/armor-editor)
 [![Downloads](https://img.shields.io/npm/dt/armor-editor.svg)](https://www.npmjs.com/package/armor-editor)
