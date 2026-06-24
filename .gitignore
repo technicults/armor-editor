@@ -48,3 +48,4 @@ temp/
 # Package lock files (keep only one)
 package-lock.json
 yarn.lock
+opencode.json
