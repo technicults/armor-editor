@@ -1,5 +1,5 @@
 // Version info
-export const VERSION = '2.0.15';
+export const VERSION = '2.0.16';
 
 import { icons } from './icons';
 import { themes, applyTheme, Theme } from './themes';
